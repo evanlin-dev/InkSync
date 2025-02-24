@@ -1,100 +1,103 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { decode } from '@msgpack/msgpack';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import HomePage from './pages/HomePage';
+import SessionPage from './pages/SessionPage';
 
 function App() {
-  const [message, setMessage] = useState('');
-  const [receivedMessages, setReceivedMessages] = useState([]);
-  const [ws, setWs] = useState(null);
+  // const [message, setMessage] = useState('');
+  // const [receivedMessages, setReceivedMessages] = useState([]);
+  // const [ws, setWs] = useState(null);
 
-  const [userName, setUserName] = useState('');
-  const [sessionID, setSessionID] = useState('')
-  const [sessions, setSessions] = useState([]);
-  const [activeSession, setActiveSession] = useState('');
+  // const [userName, setUserName] = useState('');
+  // const [sessionID, setSessionID] = useState('')
+  // const [sessions, setSessions] = useState([]);
+  // const [activeSession, setActiveSession] = useState('');
 
-  useEffect(() => {
-    axios.get('http://localhost:8080/sessions')
-      .then(response => {
-        setSessions(response.data);
-      })
-      .catch(error => {
-        console.error('Error fetching sessions:', error);
-      });
-  }, []); // Empty dependency array, only fetch when the component is first mounted
+  // useEffect(() => {
+  //   axios.get('http://localhost:8080/sessions')
+  //     .then(response => {
+  //       setSessions(response.data);
+  //     })
+  //     .catch(error => {
+  //       console.error('Error fetching sessions:', error);
+  //     });
+  // }, []); // Empty dependency array, only fetch when the component is first mounted
 
-  useEffect(() => {
-    const websocket = new WebSocket('ws://localhost:8080');
+  // useEffect(() => {
+  //   const websocket = new WebSocket('ws://localhost:8080');
 
-    websocket.onopen = () => {
-      console.log('Connected to WebSocket server');
-      setWs(websocket);
-    };
+  //   websocket.onopen = () => {
+  //     console.log('Connected to WebSocket server');
+  //     setWs(websocket);
+  //   };
 
-    websocket.onmessage = event => {
-      setReceivedMessages(prevMessages => [...prevMessages, event.data]);
-    };
+  //   websocket.onmessage = event => {
+  //     setReceivedMessages(prevMessages => [...prevMessages, event.data]);
+  //   };
 
-    websocket.onclose = () => {
-      console.log('Disconnected from WebSocket server');
-    };
+  //   websocket.onclose = () => {
+  //     console.log('Disconnected from WebSocket server');
+  //   };
 
-    websocket.onerror = error => {
-      console.error('WebSocket error:', error);
-    }
+  //   websocket.onerror = error => {
+  //     console.error('WebSocket error:', error);
+  //   }
 
-    return () => {
-      websocket.close();
-    };
-  }, []);
+  //   return () => {
+  //     websocket.close();
+  //   };
+  // }, []);
 
-  const sendMessage = () => {
-    if (ws) {
-      ws.send(message);
-      setMessage('');
-    }
-  };
+  // const sendMessage = () => {
+  //   if (ws) {
+  //     ws.send(message);
+  //     setMessage('');
+  //   }
+  // };
 
-  const createSession = () => {
-    if (!userName) {
-      alert('User name is required');
-      return;
-    }
-    
-    axios.post('http://localhost:8080/sessions', { userName: userName })
-      .then((response) => {
-        console.log('Session created:', response.data);
-        axios.get('http://localhost:8080/sessions')
-          .then(response => {
-            setSessions(response.data);
-          })
-          .catch(error => {
-            console.error('Error fetching sessions:', error);
-          });
-      })
-      .catch((error) => {
-        console.error('There was an error creating the session!', error);
-      });
-  };
+  // const createSession = () => {
+  //   if (!userName) {
+  //     alert('User name is required');
+  //     return;
+  //   }
 
-  const joinSession = () => {
-    if (!sessionID) {
-      alert('Session ID is required');
-      return;
-    }
+  //   axios.post('http://localhost:8080/sessions', { userName: userName })
+  //     .then((response) => {
+  //       console.log('Session created:', response.data);
+  //       axios.get('http://localhost:8080/sessions')
+  //         .then(response => {
+  //           setSessions(response.data);
+  //         })
+  //         .catch(error => {
+  //           console.error('Error fetching sessions:', error);
+  //         });
+  //     })
+  //     .catch((error) => {
+  //       console.error('There was an error creating the session!', error);
+  //     });
+  // };
+
+  // const joinSession = () => {
+  //   if (!sessionID) {
+  //     alert('Session ID is required');
+  //     return;
+  //   }
 
 
-    axios.get(`http://localhost:8080/sessions/${sessionID}`)
-      .then(response => {
-        setActiveSession(response.data);
-      })
-      .catch(error => {
-        console.error('Error fetching sessions:', error);
-      });
-  };
+  //   axios.get(`http://localhost:8080/sessions/${sessionID}`)
+  //     .then(response => {
+  //       setActiveSession(response.data);
+  //     })
+  //     .catch(error => {
+  //       console.error('Error fetching sessions:', error);
+  //     });
+  // };
 
   return (
     <div>
-      <h1>WebSocket Example</h1>
+      {/* <h1>WebSocket Example</h1>
       <input
         type="text"
         value={message}
@@ -138,7 +141,13 @@ function App() {
             <strong>Users:</strong> {session.users.join(', ')}
           </li>
         ))}
-      </ul>
+      </ul> */}
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/session/:id" element={<SessionPage />} />
+      </Routes>
+    </Router>
     </div>
   );
 }
