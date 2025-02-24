@@ -103,8 +103,7 @@ app.post('/sessions', async (req, res) => {
     for (let r = 0; r < 1000; r++) {
       const row = [];
       for (let c = 0; c < 1000; c++) {
-        const randomColor = `#ffffff`;
-        row.push(randomColor);
+        row.push(`#ffffff`);
       }
       image.push(row);
     }

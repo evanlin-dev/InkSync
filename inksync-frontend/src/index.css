@@ -1,0 +1,26 @@
+:root {
+    --primary-a0: #507ae9;
+    --primary-a10: #6a88ec;
+    --primary-a20: #8096ef;
+    --primary-a30: #94a4f1;
+    --primary-a40: #a7b2f4;
+    --primary-a50: #b9c1f7;
+
+    --surface-a0: #121212;
+    --surface-a10: #282828;
+    --surface-a20: #3f3f3f;
+    --surface-a30: #575757;
+    --surface-a40: #717171;
+    --surface-a50: #8b8b8b;
+
+    --tonal-a0: #1a1b24;
+    --tonal-a10: #2f3039;
+    --tonal-a20: #46464e;
+    --tonal-a30: #5d5e65;
+    --tonal-a40: #76777d;
+    --tonal-a50: #909096;
+}
+
+body {
+    background-color: var(--surface-a0);
+}
