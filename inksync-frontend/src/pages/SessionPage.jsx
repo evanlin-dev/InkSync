@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useParams } from "react-router-dom";
+import Sketch from '@uiw/react-color-sketch';
 import './css/SessionPage.css';
+
 
 function SessionPage() {
     const { id } = useParams();
@@ -11,6 +13,11 @@ function SessionPage() {
     const [lastCoords, setLastCoords] = useState({ x: 0, y: 0 });
     const [loadingTime, setLoadingTime] = useState(null);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [color, setColor] = useState();
+    const [brushSize, setBrushSize] = useState();
+    const [eraser, setEraser] = useState(false);
+    const [hex, setHex] = useState("#fff");
+    const [disableAlpha, setDisableAlpha] = useState(true);
     const canvasRef = useRef(null);
 
     const handleMouseDown = () => {
@@ -26,23 +33,24 @@ function SessionPage() {
         const rect = canvasRef.current.getBoundingClientRect();
         const scaleX = canvasRef.current.width / rect.width;
         const scaleY = canvasRef.current.height / rect.height;
-        
+
         const newCoords = {
             x: (event.clientX - rect.left) * scaleX, // Scale mouse X to canvas coordinates
             y: (event.clientY - rect.top) * scaleY,  // Scale mouse Y to canvas coordinates
         };
         setLocalCoords(newCoords);
-    
+
         // If the user is drawing, modify the image
         if (isDrawing) {
             modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y);
         }
     };
-    
+
     const modifyImage = (startX, startY, endX, endY) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgb(255, 0, 0)'; // Pixel color
+        
+        ctx.strokeStyle = changeColor(); // Pixel color
 
         // Draw between the two points
         ctx.beginPath();
@@ -60,6 +68,18 @@ function SessionPage() {
         setLastCoords(localCoords);
     }, [isDrawing]);
 
+    // Convert hex to a number (0-255 range)
+    const convertToNumber = (hex) => {
+        return parseInt(hex, 16);
+    };
+
+    const changeColor = () => {
+        const red = convertToNumber(hex.substring(1, 3));
+        const green = convertToNumber(hex.substring(3, 5));
+        const blue = convertToNumber(hex.substring(5, 7));
+        return `rgb(${red}, ${green}, ${blue})`
+    }
+
     const arrayToImage = () => {
         if (!data || data.length === 0 || data[0].length === 0) {
             return;
@@ -75,11 +95,6 @@ function SessionPage() {
         const ctx = canvas.getContext('2d');
 
         const imgData = ctx.createImageData(width, height);
-
-        // Convert hex to a number (0-255 range)
-        const convertToNumber = (hex) => {
-            return parseInt(hex, 16);
-        };
 
         let index = 0;
 
@@ -132,7 +147,9 @@ function SessionPage() {
             )} */}
             <div className='body-container'>
                 <div className='left-sidebar-container'>
-                    <div className='left-sidebar'></div>
+                    <div className='left-sidebar'>
+
+                    </div>
                 </div>
                 <canvas
                     onMouseMove={handleMouseMove}
@@ -141,7 +158,17 @@ function SessionPage() {
                     ref={canvasRef}
                 />
                 <div className='right-sidebar-container'>
-                    <div className='right-sidebar'></div>
+                    <div className='right-sidebar'>
+                        <Sketch
+                            style={{ marginTop: '1em', backgroundColor: "#323232", boxShadow: null }}
+                            color={hex}
+                            disableAlpha={disableAlpha}
+                            onChange={(color) => {
+                                setHex(color.hex);
+                            }}
+                        />
+
+                    </div>
                 </div>
             </div>
         </div>

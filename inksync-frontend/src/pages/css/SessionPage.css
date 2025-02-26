@@ -36,6 +36,13 @@
 .right-sidebar {
     height: 110dvh;
     width: 30dvh;
-    background-color: #555;
+    background-color: #323232;
     border-radius: 2em;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.w-color-sketch {
+    --sketch-swatch-border-top: none !important;
 }
