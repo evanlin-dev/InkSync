@@ -1,0 +1,41 @@
+.session-page-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.body-container {
+    /* display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(1, 1fr);
+    gap: 8px; */
+    display: flex;
+    gap: 3em;
+}
+
+.left-sidebar-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.left-sidebar {
+    height: 50dvh;
+    width: 5em;
+    background-color: #555;
+    border-radius: 10em;
+}
+
+.right-sidebar-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.right-sidebar {
+    height: 110dvh;
+    width: 30dvh;
+    background-color: #555;
+    border-radius: 2em;
+}

@@ -22,15 +22,23 @@ function SessionPage() {
     };
 
     const handleMouseMove = event => {
+        // Get the position of the canvas relative to the viewport
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+        
         const newCoords = {
-            x: event.clientX - event.target.offsetLeft,
-            y: event.clientY - event.target.offsetTop,
+            x: (event.clientX - rect.left) * scaleX, // Scale mouse X to canvas coordinates
+            y: (event.clientY - rect.top) * scaleY,  // Scale mouse Y to canvas coordinates
         };
         setLocalCoords(newCoords);
+    
+        // If the user is drawing, modify the image
         if (isDrawing) {
             modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y);
         }
     };
+    
     const modifyImage = (startX, startY, endX, endY) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
@@ -57,7 +65,7 @@ function SessionPage() {
             return;
         }
 
-        const startTime = performance.now();
+        // const startTime = performance.now();
 
         const height = data.length;
         const width = data[0].length;
@@ -95,15 +103,15 @@ function SessionPage() {
         // Put the image data onto the canvas
         ctx.putImageData(imgData, 0, 0);
 
-        const endTime = performance.now();
-        const loadTime = endTime - startTime;
-        setLoadingTime(loadTime);
+        // const endTime = performance.now();
+        // const loadTime = endTime - startTime;
+        // setLoadingTime(loadTime);
     };
 
     useEffect(() => {
         axios.get(`http://localhost:8080/sessions/${id}`)
             .then(response => {
-                setUsers(response.data.users);
+                // setUsers(response.data.users);
                 setData(response.data.image);
             })
             .catch(error => {
@@ -118,28 +126,24 @@ function SessionPage() {
     }, [data]);
 
     return (
-        <div className="session-page">
-            <h1>Welcome to the Session Page</h1>
-            <h1>Session ID: {id}</h1>
-            <ul>
-                {users.map((user, index) => (
-                    <li key={index}>
-                        {user}
-                    </li>
-                ))}
-            </ul>
-            <h2>
-                Relative: ({localCoords.x}, {localCoords.y})
-            </h2>
-            {loadingTime !== null && (
+        <div className='session-page-container'>
+            {/* {loadingTime !== null && (
                 <h3>Canvas render time: {loadingTime.toFixed(2)} ms</h3>
-            )}
-            <canvas
-                onMouseMove={handleMouseMove}
-                onMouseDown={handleMouseDown}
-                onMouseUp={handleMouseUp} 
-                ref={canvasRef}
-            />
+            )} */}
+            <div className='body-container'>
+                <div className='left-sidebar-container'>
+                    <div className='left-sidebar'></div>
+                </div>
+                <canvas
+                    onMouseMove={handleMouseMove}
+                    onMouseDown={handleMouseDown}
+                    onMouseUp={handleMouseUp}
+                    ref={canvasRef}
+                />
+                <div className='right-sidebar-container'>
+                    <div className='right-sidebar'></div>
+                </div>
+            </div>
         </div>
     );
 }

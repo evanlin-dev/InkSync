@@ -17,19 +17,22 @@ app.use(express.raw({ type: 'application/x-msgpack' }));  // Expect raw binary d
 
 const mongoURI = process.env.MONGO_URI;
 
-wss.on('connection', ws => {
+wss.on('connection', (ws, req) => {
   console.log('Client connected');
+  const route = req.url; // Dynamic route based on URL
+  console.log(`Client connected to route: ${route}`);
 
-  ws.on('message', message => {
+  // Example: Handling message based on route
+  ws.on('message', (message) => {
     console.log(`Received: ${message}`);
-    ws.send(`Server received: ${message}`);
+    ws.send(`Server received message on route ${route}: ${message}`);
   });
 
   ws.on('close', () => {
-    console.log('Client disconnected');
+    console.log(`Client disconnected from route: ${route}`);
   });
 
-  ws.onerror = error => {
+  ws.onerror = (error) => {
     console.error('WebSocket error:', error);
   };
 });
@@ -48,7 +51,7 @@ mongoose.connect(mongoURI)
 app.get('/sessions', async (req, res) => {
   try {
     const sessions = await Session.find();
-    
+
     // Decode each session's data from MessagePack format
     const decodedSessions = sessions.map(session => {
       const decodedData = msgpack.decode(session.data);
@@ -112,12 +115,32 @@ app.post('/sessions', async (req, res) => {
       users: [req.body.userName],
       image: image
     };
-    
+
     const session = new Session({
       data: msgpack.encode(sessionData)
     });
 
     await session.save();
+
+    // Get session ID and create the dynamic route for the WebSocket
+    const dynamicRoute = `/${session._id}`;
+    console.log(`WebSocket dynamic route: ws://localhost:8080${dynamicRoute}`);
+
+    // Optionally: You can establish a WebSocket connection here if needed
+    const socket = new WebSocket(`ws://localhost:8080${dynamicRoute}`);
+
+    socket.on('open', () => {
+      console.log('WebSocket connection opened to dynamic route');
+    });
+
+    socket.on('message', (msg) => {
+      console.log('Received from WebSocket server:', msg);
+    });
+
+    socket.on('close', () => {
+      console.log('WebSocket connection closed');
+    });
+
     res.json({ message: 'Session created', session });
   } catch (err) {
     res.status(500).send('Server Error');
@@ -138,7 +161,7 @@ app.put('/sessions/:id', async (req, res) => {
 
     const decodedData = msgpack.decode(session.data);
 
-    // Add new user if avaliable
+    // Add new user if available
     if (req.body.userName) {
       decodedData.users.push(req.body.userName);
     }
@@ -147,12 +170,31 @@ app.put('/sessions/:id', async (req, res) => {
     if (req.body.r !== undefined && req.body.c !== undefined && req.body.color) {
       decodedData.image[req.body.r][req.body.c] = req.body.color;
     }
-    
+
     const encodedSession = msgpack.encode(decodedData);
 
     // Save the updated session
     session.data = encodedSession;
     await session.save();
+
+    // Get session ID and create the dynamic route for the WebSocket
+    const dynamicRoute = `/${session._id}`;
+    console.log(`WebSocket dynamic route: ws://localhost:8080${dynamicRoute}`);
+
+    // Optionally: You can establish a WebSocket connection here if needed
+    const socket = new WebSocket(`ws://localhost:8080${dynamicRoute}`);
+
+    socket.on('open', () => {
+      console.log('WebSocket connection opened to dynamic route');
+    });
+
+    socket.on('message', (msg) => {
+      console.log('Received from WebSocket server:', msg);
+    });
+
+    socket.on('close', () => {
+      console.log('WebSocket connection closed');
+    });
 
     res.json({ message: 'Session modified', session: { _id: session._id, users: decodedData.users, image: decodedData.image } });
   } catch (err) {
