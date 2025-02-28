@@ -1,0 +1,145 @@
+.slider-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1em;
+}
+
+input[type=range] {
+    height: 3em;
+    /* Set the height of the slider track */
+    -webkit-appearance: none;
+    /* Remove the default appearance in WebKit browsers */
+    margin: 10px 0;
+    width: 10em;
+    /* Make the slider full width */
+    background: none;
+    outline: none;
+}
+
+/* ============================
+   Focused Range Input Styling
+   ============================ */
+input[type=range]:focus {
+    outline: none;
+    /* Removes the default focus outline */
+}
+
+/* WebKit Browsers (Chrome, Safari, etc.) */
+/* WebKit track background with gradient to show fill on the left side of the thumb */
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 3em;
+    cursor: pointer;
+    background: #ddd;
+    /* Light gray background for the track */
+    border: 1px solid #000000;
+    /* Black border around the track */
+}
+
+/* Styling the thumb (handle) in WebKit browsers */
+input[type=range]::-webkit-slider-thumb {
+    box-shadow: none;
+    border: 1px solid #000000;
+    /* Black border for the thumb */
+    height: 100%;
+    width: 1px;
+    /* Narrow thumb */
+    background: transparent;
+    /* Transparent thumb */
+    cursor: pointer;
+    -webkit-appearance: none;
+    margin-top: 0;
+    /* Adjusts vertical position of the thumb */
+}
+
+/* Mozilla Firefox */
+/* Style for the track in Firefox */
+input[type=range]::-moz-range-track {
+    width: 100%;
+    /* Full width of the track */
+    height: 3em;
+    /* Ensure track height is consistent */
+    background: #ddd;
+    /* Light gray background for the track */
+}
+
+/* Style for the filled portion in Firefox */
+input[type=range]::-moz-range-progress {
+    background: #3071A9;
+    /* Blue color for the filled portion */
+    height: 100%;
+    /* Ensure it fills the entire height of the track */
+}
+
+/* Style for the thumb (handle) */
+input[type=range]::-moz-range-thumb {
+    width: 1px;
+    height: 100%;
+    cursor: pointer;
+    background: transparent;
+    /* Transparent thumb */
+}
+
+/* Microsoft Edge and Internet Explorer */
+/* Styling the track in Microsoft Edge and Internet Explorer */
+input[type=range]::-ms-track {
+    width: 100%;
+    height: 3em;
+    cursor: pointer;
+    background: transparent;
+    /* Track background is transparent, controlled by other properties */
+    border-color: transparent;
+    /* Transparent border */
+    color: transparent;
+    /* Transparent color */
+}
+
+/* Lower part of the track in Microsoft Edge and Internet Explorer */
+input[type=range]::-ms-fill-lower {
+    background: #3071A9;
+    /* Blue color for the lower track part */
+    border: 1px solid #000000;
+    /* Black border */
+}
+
+/* Upper part of the track in Microsoft Edge and Internet Explorer */
+input[type=range]::-ms-fill-upper {
+    background: #ddd;
+    /* Light gray for the upper part of the track */
+    border: 1px solid #000000;
+    /* Black border */
+}
+
+/* Styling the thumb (handle) in Microsoft Edge and Internet Explorer */
+input[type=range]::-ms-thumb {
+    margin-top: 0;
+    /* Adjusts the vertical position of the thumb */
+    box-shadow: none;
+    /* Removes shadow */
+    border: 1px solid #000000;
+    /* Black border for the thumb */
+    height: 100%;
+    width: 1px;
+    /* Narrow thumb */
+    background: transparent;
+    /* Transparent thumb */
+    cursor: pointer;
+}
+
+/* Focused state for the lower track in Microsoft Edge and Internet Explorer */
+input[type=range]:focus::-ms-fill-lower {
+    background: #3071A9;
+    /* Blue color when focused */
+}
+
+/* Focused state for the upper track in Microsoft Edge and Internet Explorer */
+input[type=range]:focus::-ms-fill-upper {
+    background: #3071A9;
+    /* Blue color when focused */
+}
+
+input[type=number] {
+    width: 3em;
+    height: 2.6em;
+}

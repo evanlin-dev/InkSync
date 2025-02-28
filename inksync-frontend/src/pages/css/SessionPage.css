@@ -35,12 +35,13 @@
 
 .right-sidebar {
     height: 110dvh;
-    width: 30dvh;
+    width: 15dvw;
     background-color: #323232;
     border-radius: 2em;
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    justify-content: flex-start;
+    align-items: center;
+    flex-direction: column;
 }
 
 .w-color-sketch {

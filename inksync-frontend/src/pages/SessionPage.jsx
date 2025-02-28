@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useParams } from "react-router-dom";
 import Sketch from '@uiw/react-color-sketch';
 import './css/SessionPage.css';
+import SliderComponent from '../components/Slider';
 
 
 function SessionPage() {
@@ -14,7 +15,7 @@ function SessionPage() {
     const [loadingTime, setLoadingTime] = useState(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [color, setColor] = useState();
-    const [brushSize, setBrushSize] = useState();
+    const [brushSize, setBrushSize] = useState(1);
     const [eraser, setEraser] = useState(false);
     const [hex, setHex] = useState("#fff");
     const [disableAlpha, setDisableAlpha] = useState(true);
@@ -56,7 +57,8 @@ function SessionPage() {
         ctx.beginPath();
         ctx.moveTo(startX, startY);  // Move to the start point
         ctx.lineTo(endX, endY);  // Draw to the end point
-        ctx.lineWidth = 1;
+        ctx.lineCap = "round";
+        ctx.lineWidth = brushSize;
         ctx.stroke();  // Apply the line
 
         // Update lastCoords to the current mouse position
@@ -78,6 +80,10 @@ function SessionPage() {
         const green = convertToNumber(hex.substring(3, 5));
         const blue = convertToNumber(hex.substring(5, 7));
         return `rgb(${red}, ${green}, ${blue})`
+    }
+
+    const handleBrushSizeChange = (value) => {
+        setBrushSize(value);
     }
 
     const arrayToImage = () => {
@@ -167,6 +173,7 @@ function SessionPage() {
                                 setHex(color.hex);
                             }}
                         />
+                        <SliderComponent onSliderChange={handleBrushSizeChange}/>
 
                     </div>
                 </div>
