@@ -25,6 +25,10 @@
     width: 5em;
     background-color: #555;
     border-radius: 10em;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .right-sidebar-container {
@@ -46,4 +50,8 @@
 
 .w-color-sketch {
     --sketch-swatch-border-top: none !important;
+}
+
+button {
+    all: unset;
 }

@@ -5,7 +5,6 @@ import Sketch from '@uiw/react-color-sketch';
 import './css/SessionPage.css';
 import SliderComponent from '../components/Slider';
 
-
 function SessionPage() {
     const { id } = useParams();
     const [users, setUsers] = useState([]);
@@ -16,7 +15,7 @@ function SessionPage() {
     const [isDrawing, setIsDrawing] = useState(false);
     const [color, setColor] = useState();
     const [brushSize, setBrushSize] = useState(1);
-    const [eraser, setEraser] = useState(false);
+    const [isEraser, setIsEraser] = useState(false);
     const [hex, setHex] = useState("#fff");
     const [disableAlpha, setDisableAlpha] = useState(true);
     const canvasRef = useRef(null);
@@ -50,8 +49,8 @@ function SessionPage() {
     const modifyImage = (startX, startY, endX, endY) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        
-        ctx.strokeStyle = changeColor(); // Pixel color
+
+        ctx.strokeStyle = isEraser ? `rgb(255, 255, 255)` : changeColor(); // Pixel color
 
         // Draw between the two points
         ctx.beginPath();
@@ -154,7 +153,42 @@ function SessionPage() {
             <div className='body-container'>
                 <div className='left-sidebar-container'>
                     <div className='left-sidebar'>
-
+                        <button
+                            onClick={() => alert('Button clicked')}
+                            style={{
+                                backgroundImage: `url(/Cursor.svg)`,
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                width: '3em',
+                                height: '3em',
+                                cursor: 'pointer',
+                                marginTop: '1em'
+                            }}
+                        />
+                        <button
+                            onClick={() => setIsEraser(false)}
+                            style={{
+                                backgroundImage: `url(/Paintbrush.svg)`,
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                width: '3em',
+                                height: '3em',
+                                cursor: 'pointer',
+                                marginTop: '1em'
+                            }}
+                        />
+                        <button
+                            onClick={() => setIsEraser(true)}
+                            style={{
+                                backgroundImage: `url(/Erase.svg)`,
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                width: '3em',
+                                height: '3em',
+                                cursor: 'pointer',
+                                marginTop: '1em'
+                            }}
+                        />
                     </div>
                 </div>
                 <canvas
@@ -173,7 +207,7 @@ function SessionPage() {
                                 setHex(color.hex);
                             }}
                         />
-                        <SliderComponent onSliderChange={handleBrushSizeChange}/>
+                        <SliderComponent onSliderChange={handleBrushSizeChange} />
 
                     </div>
                 </div>
