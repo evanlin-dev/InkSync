@@ -153,7 +153,7 @@ function SessionPage() {
             <div className='body-container'>
                 <div className='left-sidebar-container'>
                     <div className='left-sidebar'>
-                        <button
+                        {/* <button
                             onClick={() => alert('Button clicked')}
                             style={{
                                 backgroundImage: `url(/Cursor.svg)`,
@@ -164,30 +164,14 @@ function SessionPage() {
                                 cursor: 'pointer',
                                 marginTop: '1em'
                             }}
-                        />
+                        /> */}
                         <button
                             onClick={() => setIsEraser(false)}
-                            style={{
-                                backgroundImage: `url(/Paintbrush.svg)`,
-                                backgroundSize: 'cover',
-                                backgroundRepeat: 'no-repeat',
-                                width: '3em',
-                                height: '3em',
-                                cursor: 'pointer',
-                                marginTop: '1em'
-                            }}
+                            className='pen-button'
                         />
                         <button
                             onClick={() => setIsEraser(true)}
-                            style={{
-                                backgroundImage: `url(/Erase.svg)`,
-                                backgroundSize: 'cover',
-                                backgroundRepeat: 'no-repeat',
-                                width: '3em',
-                                height: '3em',
-                                cursor: 'pointer',
-                                marginTop: '1em'
-                            }}
+                            className='eraser-button'
                         />
                     </div>
                 </div>

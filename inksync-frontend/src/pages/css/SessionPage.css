@@ -55,3 +55,35 @@
 button {
     all: unset;
 }
+
+.pen-button {
+    background-image: url("/Paintbrush.svg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    width: 3em;
+    height: 3em;
+    cursor: pointer;
+    margin-top: 1em;
+    border-radius: 50%;
+    outline-offset: 5px;
+}
+
+.pen-button:hover {
+    outline: 1px solid black;
+}
+
+.eraser-button {
+    background-image: url("/Erase.svg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    width: 3em;
+    height: 3em;
+    cursor: pointer;
+    margin-top: 1em;
+    border-radius: 50%;
+    outline-offset: 5px;
+}
+
+.eraser-button:hover {
+    outline: 1px solid black;
+}
