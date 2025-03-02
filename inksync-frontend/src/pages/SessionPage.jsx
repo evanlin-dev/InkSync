@@ -87,8 +87,19 @@ function SessionPage() {
         }
     }, [data]);
 
-    const handleMouseDown = () => {
-        setIsDrawing(true);  // Start drawing
+    const handleMouseDown = (event) => {
+        setIsDrawing(true);
+
+        const rect = canvasRef.current.getBoundingClientRect();
+        const scaleX = canvasRef.current.width / rect.width;
+        const scaleY = canvasRef.current.height / rect.height;
+
+        const newCoords = {
+            x: (event.clientX - rect.left) * scaleX,
+            y: (event.clientY - rect.top) * scaleY,
+        };
+
+        setLastCoords(newCoords);
     };
 
     const handleMouseUp = () => {
