@@ -43,10 +43,20 @@ wss.on('connection', (ws, req) => {
   }, 30000);
 
   ws.on('message', (message) => {
-    const data = JSON.parse(message);
-    console.log("Received change:", data);
-    // Process the change and broadcast it to other users
-  });
+    try {
+        const data = JSON.parse(message);
+        console.log(`Received drawing data from session ${sessionId}:`, data);
+
+        // Broadcast the message to all clients *except* the sender
+        wss.clients.forEach(client => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(data));
+            }
+        });
+    } catch (err) {
+        console.error("Error processing message:", err);
+    }
+});
 
 
   ws.on('close', () => {

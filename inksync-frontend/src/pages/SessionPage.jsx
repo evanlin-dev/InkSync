@@ -32,21 +32,34 @@ function SessionPage() {
         if (!socketRef.current) {
             socketRef.current = new WebSocket(`ws://localhost:8080/${id}`);
             console.log("WebSocket created for session:", id);
-
+    
             socketRef.current.onopen = () => {
                 console.log("WebSocket connection opened");
             };
-
+    
             socketRef.current.onclose = () => {
                 console.log("WebSocket connection closed");
             };
-
+    
             socketRef.current.onerror = (error) => {
                 console.error("WebSocket error:", error);
             };
-
+    
+            // Handle incoming messages from other users
             socketRef.current.onmessage = (msg) => {
-                console.log("Received WebSocket message:", msg.data);
+                const receivedData = JSON.parse(msg.data);
+                console.log("Received drawing update:", receivedData);
+    
+                // Apply the received drawing updates to the canvas
+                modifyImage(
+                    receivedData.lastCoords.x,
+                    receivedData.lastCoords.y,
+                    receivedData.newCoords.x,
+                    receivedData.newCoords.y,
+                    receivedData.hex,
+                    receivedData.brushSize,
+                    receivedData.isEraser
+                );
             };
         }
         return () => {
@@ -57,7 +70,6 @@ function SessionPage() {
             }
         };
     }, [id]);
-
     useEffect(() => {
         // Fetch session data
         axios.get(`http://localhost:8080/sessions/${id}`)
@@ -97,22 +109,29 @@ function SessionPage() {
 
         // If the user is drawing, modify the image
         if (isDrawing) {
-            socketRef.current.send(JSON.stringify(lastCoords, newCoords)); // Send data as JSON
+            socketRef.current.send(JSON.stringify({
+                lastCoords,
+                newCoords,
+                hex,
+                brushSize,
+                isEraser
+            }));
+            
 
-            modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y);
+            modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y, changeColor(), brushSize, isEraser);
         }
     };
 
-    const modifyImage = (startX, startY, endX, endY) => {
+    const modifyImage = (startX, startY, endX, endY, color, size, eraser) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
 
-        ctx.strokeStyle = isEraser ? 'rgb(255, 255, 255)' : changeColor();
+        ctx.strokeStyle = eraser ? 'rgb(255, 255, 255)' : color;
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
         ctx.lineCap = "round";
-        ctx.lineWidth = brushSize;
+        ctx.lineWidth = size;
         ctx.stroke();
 
         setLastCoords({ x: endX, y: endY });
