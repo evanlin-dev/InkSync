@@ -21,6 +21,8 @@ function SessionPage() {
     const [disableAlpha, setDisableAlpha] = useState(true);
     const canvasRef = useRef(null);
     const socketRef = useRef(null);
+    const [history, setHistory] = useState([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
 
     //   useBeforeUnload((event) => {
     //     console.log('Before unload event triggered');
@@ -32,24 +34,24 @@ function SessionPage() {
         if (!socketRef.current) {
             socketRef.current = new WebSocket(`ws://localhost:8080/${id}`);
             console.log("WebSocket created for session:", id);
-    
+
             socketRef.current.onopen = () => {
                 console.log("WebSocket connection opened");
             };
-    
+
             socketRef.current.onclose = () => {
                 console.log("WebSocket connection closed");
             };
-    
+
             socketRef.current.onerror = (error) => {
                 console.error("WebSocket error:", error);
             };
-    
+
             // Handle incoming messages from other users
             socketRef.current.onmessage = (msg) => {
                 const receivedData = JSON.parse(msg.data);
                 console.log("Received drawing update:", receivedData);
-    
+
                 // Apply the received drawing updates to the canvas
                 modifyImage(
                     receivedData.lastCoords.x,
@@ -75,6 +77,7 @@ function SessionPage() {
         axios.get(`http://localhost:8080/sessions/${id}`)
             .then(response => {
                 setData(response.data.image);  // Set image data
+                saveState();
             })
             .catch(error => {
                 console.error('Error fetching session data:', error);
@@ -86,6 +89,56 @@ function SessionPage() {
             arrayToImage(); // Update canvas with fetched image data
         }
     }, [data]);
+
+    // Function to save the current state to history
+    const saveState = () => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const context = canvas.getContext('2d');
+            // Get the current image data from the canvas
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            // Create a new history array up to the current index
+            const newHistory = history.slice(0, historyIndex + 1);
+            // Add the current image data to the history
+            newHistory.push(imageData);
+            // Update the history state
+            setHistory(newHistory);
+            // Update the history index to the latest entry
+            setHistoryIndex(newHistory.length - 1);
+        }
+    };
+
+    // Function to undo the last action
+    const undo = () => {
+        if (historyIndex > 0) {
+            // Decrement the history index
+            setHistoryIndex(historyIndex - 1);
+            const ctx = canvasRef.current.getContext('2d');
+            // Restore the previous image data from history
+            ctx.putImageData(history[historyIndex - 1], 0, 0);
+
+            // Send the undo action to the server to broadcast to others
+            socketRef.current.send(JSON.stringify({
+                action: 'undo',
+            }));
+        }
+    };
+
+    // Function to redo the undone action
+    const redo = () => {
+        if (historyIndex < history.length - 1) {
+            // Increment the history index
+            setHistoryIndex(historyIndex + 1);
+            const ctx = canvasRef.current.getContext('2d');
+            // Restore the next image data from history
+            ctx.putImageData(history[historyIndex + 1], 0, 0);
+
+            // Send the redo action to the server to broadcast to others
+            socketRef.current.send(JSON.stringify({
+                action: 'redo',
+            }));
+        }
+    };
 
     const handleMouseDown = (event) => {
         setIsDrawing(true);
@@ -104,6 +157,7 @@ function SessionPage() {
 
     const handleMouseUp = () => {
         setIsDrawing(false);  // Stop drawing
+        saveState();
     };
 
     const handleMouseMove = event => {
@@ -127,7 +181,7 @@ function SessionPage() {
                 brushSize,
                 isEraser
             }));
-            
+
 
             modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y, changeColor(), brushSize, isEraser);
         }
@@ -210,6 +264,8 @@ function SessionPage() {
                     <div className='left-sidebar'>
                         <button onClick={() => setIsEraser(false)} className='pen-button' />
                         <button onClick={() => setIsEraser(true)} className='eraser-button' />
+                        <button onClick={() => undo()} className='undo-button' />
+                        <button onClick={() => redo()} className='redo-button' />
                     </div>
                 </div>
                 <canvas

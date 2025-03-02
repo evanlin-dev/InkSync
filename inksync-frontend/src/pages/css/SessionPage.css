@@ -87,3 +87,35 @@ button {
 .eraser-button:hover {
     outline: 1px solid black;
 }
+
+.undo-button {
+    background-image: url("/Undo.svg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    width: 3em;
+    height: 3em;
+    cursor: pointer;
+    margin-top: 1em;
+    border-radius: 50%;
+    outline-offset: 5px;
+}
+
+.undo-button:hover {
+    outline: 1px solid black;
+}
+
+.redo-button {
+    background-image: url("/Redo.svg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    width: 3em;
+    height: 3em;
+    cursor: pointer;
+    margin-top: 1em;
+    border-radius: 50%;
+    outline-offset: 5px;
+}
+
+.redo-button:hover {
+    outline: 1px solid black;
+}
