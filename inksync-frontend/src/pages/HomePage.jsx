@@ -18,27 +18,22 @@ function HomePage() {
     axios.post('http://localhost:8080/sessions', { userName: userName })
       .then((response) => {
         console.log('Session created:', response.data);
-      
-        const newSessionID = response.data.session._id;
-
-        navigate(`/session/${newSessionID}`);
+        navigate(`/session/${response.data.session._id}`);
       })
       .catch((error) => {
         console.error('There was an error creating the session!', error);
       });
   };
 
-  const handleSessionJoin = (userName, sessionID) => {
-    if (!userName || !sessionID) {
+  const handleSessionJoin = (userName, sessionId) => {
+    if (!userName || !sessionId) {
       alert('Both user name and session ID are required');
       return;
     }
 
-    axios.put(`http://localhost:8080/sessions/${sessionID}`, { userName: userName })
+    axios.put(`http://localhost:8080/sessions/${sessionId}`, { userName: userName })
       .then((response) => {
-        console.log('Session joined:', response.data);
-
-        navigate(`/session/${sessionID}`);
+        navigate(`/session/${sessionId}`);
       })
       .catch((error) => {
         console.error('There was an error joining the session!', error);

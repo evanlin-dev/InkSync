@@ -17,25 +17,59 @@ app.use(express.raw({ type: 'application/x-msgpack' }));  // Expect raw binary d
 
 const mongoURI = process.env.MONGO_URI;
 
-wss.on('connection', (ws, req) => {
-  console.log('Client connected');
-  const route = req.url; // Dynamic route based on URL
-  console.log(`Client connected to route: ${route}`);
+const activeConnections = {}; // Maps session ID to active connections count
+const deleteTimeouts = {};    // Maps session ID to deletion timeout IDs
 
-  // Example: Handling message based on route
+wss.on('connection', (ws, req) => {
+  const sessionId = req.url.slice(1); // Extract session ID from URL
+  console.log(`Client connected to session ${sessionId}`);
+
+  // If there's a pending deletion timer for this session, cancel it.
+  if (deleteTimeouts[sessionId]) {
+    clearTimeout(deleteTimeouts[sessionId]);
+    delete deleteTimeouts[sessionId];
+    console.log(`Cancelled deletion timeout for session ${sessionId}`);
+  }
+
+  // Increment the connection count for the session
+  activeConnections[sessionId] = (activeConnections[sessionId] || 0) + 1;
+  console.log(`Active connections for ${sessionId}: ${activeConnections[sessionId]}`);
+
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+      console.log(`Ping sent to session ${sessionId}`);
+    }
+  }, 30000);
+
   ws.on('message', (message) => {
-    console.log(`Received: ${message}`);
-    ws.send(`Server received message on route ${route}: ${message}`);
+    const data = JSON.parse(message);
+    console.log("Received change:", data);
+    // Process the change and broadcast it to other users
   });
+
 
   ws.on('close', () => {
-    console.log(`Client disconnected from route: ${route}`);
+    clearInterval(pingInterval);
+    activeConnections[sessionId]--;
+    console.log(`Connection closed for session ${sessionId}. Active connections: ${activeConnections[sessionId]}`);
+
+    // If no active connections remain, delay deletion
+    if (activeConnections[sessionId] <= 0) {
+      deleteTimeouts[sessionId] = setTimeout(async () => {
+        console.log(`No active connections remain for session ${sessionId}. Deleting session.`);
+        await Session.findByIdAndDelete(sessionId);
+        delete activeConnections[sessionId];
+        delete deleteTimeouts[sessionId];
+      }, 3000); // Delay in milliseconds (adjust as needed)
+    }
   });
 
-  ws.onerror = (error) => {
+  ws.on('error', (error) => {
     console.error('WebSocket error:', error);
-  };
+  });
 });
+
 
 mongoose.connect(mongoURI)
   .then(() => {

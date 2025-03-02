@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import Sketch from '@uiw/react-color-sketch';
 import './css/SessionPage.css';
 import SliderComponent from '../components/Slider';
+import { useBeforeUnload } from 'react-router-dom';
 
 function SessionPage() {
     const { id } = useParams();
@@ -19,6 +20,60 @@ function SessionPage() {
     const [hex, setHex] = useState("#fff");
     const [disableAlpha, setDisableAlpha] = useState(true);
     const canvasRef = useRef(null);
+    const socketRef = useRef(null);
+
+    //   useBeforeUnload((event) => {
+    //     console.log('Before unload event triggered');
+    //     event.returnValue = 'Are you sure you want to leave?';
+    //   });
+
+    // Create WebSocket connection when the component mounts
+    useEffect(() => {
+        if (!socketRef.current) {
+            socketRef.current = new WebSocket(`ws://localhost:8080/${id}`);
+            console.log("WebSocket created for session:", id);
+
+            socketRef.current.onopen = () => {
+                console.log("WebSocket connection opened");
+            };
+
+            socketRef.current.onclose = () => {
+                console.log("WebSocket connection closed");
+            };
+
+            socketRef.current.onerror = (error) => {
+                console.error("WebSocket error:", error);
+            };
+
+            socketRef.current.onmessage = (msg) => {
+                console.log("Received WebSocket message:", msg.data);
+            };
+        }
+        return () => {
+            if (socketRef.current) {
+                console.log("Closing WebSocket connection for session:", id);
+                socketRef.current.close();
+                socketRef.current = null;
+            }
+        };
+    }, [id]);
+
+    useEffect(() => {
+        // Fetch session data
+        axios.get(`http://localhost:8080/sessions/${id}`)
+            .then(response => {
+                setData(response.data.image);  // Set image data
+            })
+            .catch(error => {
+                console.error('Error fetching session data:', error);
+            });
+    }, [id]);
+
+    useEffect(() => {
+        if (data) {
+            arrayToImage(); // Update canvas with fetched image data
+        }
+    }, [data]);
 
     const handleMouseDown = () => {
         setIsDrawing(true);  // Start drawing
@@ -35,13 +90,15 @@ function SessionPage() {
         const scaleY = canvasRef.current.height / rect.height;
 
         const newCoords = {
-            x: (event.clientX - rect.left) * scaleX, // Scale mouse X to canvas coordinates
-            y: (event.clientY - rect.top) * scaleY,  // Scale mouse Y to canvas coordinates
+            x: (event.clientX - rect.left) * scaleX,
+            y: (event.clientY - rect.top) * scaleY,
         };
         setLocalCoords(newCoords);
 
         // If the user is drawing, modify the image
         if (isDrawing) {
+            socketRef.current.send(JSON.stringify(lastCoords, newCoords)); // Send data as JSON
+
             modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y);
         }
     };
@@ -50,17 +107,14 @@ function SessionPage() {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
 
-        ctx.strokeStyle = isEraser ? `rgb(255, 255, 255)` : changeColor(); // Pixel color
-
-        // Draw between the two points
+        ctx.strokeStyle = isEraser ? 'rgb(255, 255, 255)' : changeColor();
         ctx.beginPath();
-        ctx.moveTo(startX, startY);  // Move to the start point
-        ctx.lineTo(endX, endY);  // Draw to the end point
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
         ctx.lineCap = "round";
         ctx.lineWidth = brushSize;
-        ctx.stroke();  // Apply the line
+        ctx.stroke();
 
-        // Update lastCoords to the current mouse position
         setLastCoords({ x: endX, y: endY });
     };
 
@@ -78,19 +132,17 @@ function SessionPage() {
         const red = convertToNumber(hex.substring(1, 3));
         const green = convertToNumber(hex.substring(3, 5));
         const blue = convertToNumber(hex.substring(5, 7));
-        return `rgb(${red}, ${green}, ${blue})`
-    }
+        return `rgb(${red}, ${green}, ${blue})`;
+    };
 
     const handleBrushSizeChange = (value) => {
         setBrushSize(value);
-    }
+    };
 
     const arrayToImage = () => {
         if (!data || data.length === 0 || data[0].length === 0) {
             return;
         }
-
-        // const startTime = performance.now();
 
         const height = data.length;
         const width = data[0].length;
@@ -100,79 +152,34 @@ function SessionPage() {
         const ctx = canvas.getContext('2d');
 
         const imgData = ctx.createImageData(width, height);
-
         let index = 0;
 
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const hexColor = data[y][x]; // Get the hex color for the current pixel
+                const hexColor = data[y][x];
                 const red = convertToNumber(hexColor.substring(1, 3));
                 const green = convertToNumber(hexColor.substring(3, 5));
                 const blue = convertToNumber(hexColor.substring(5, 7));
 
-                // Set the RGBA values in imgData
-                imgData.data[index + 0] = red;   // Red channel
-                imgData.data[index + 1] = green; // Green channel
-                imgData.data[index + 2] = blue;  // Blue channel
-                imgData.data[index + 3] = 255;   // Alpha channel (fully opaque)
+                imgData.data[index + 0] = red;
+                imgData.data[index + 1] = green;
+                imgData.data[index + 2] = blue;
+                imgData.data[index + 3] = 255; // Fully opaque
 
-                index += 4; // Move to the next pixel in the ImageData array
+                index += 4;
             }
         }
 
-        // Put the image data onto the canvas
         ctx.putImageData(imgData, 0, 0);
-
-        // const endTime = performance.now();
-        // const loadTime = endTime - startTime;
-        // setLoadingTime(loadTime);
     };
-
-    useEffect(() => {
-        axios.get(`http://localhost:8080/sessions/${id}`)
-            .then(response => {
-                // setUsers(response.data.users);
-                setData(response.data.image);
-            })
-            .catch(error => {
-                console.error('Error fetching sessions:', error);
-            });
-    }, [id]);
-
-    useEffect(() => {
-        if (data) {
-            arrayToImage();
-        }
-    }, [data]);
 
     return (
         <div className='session-page-container'>
-            {/* {loadingTime !== null && (
-                <h3>Canvas render time: {loadingTime.toFixed(2)} ms</h3>
-            )} */}
             <div className='body-container'>
                 <div className='left-sidebar-container'>
                     <div className='left-sidebar'>
-                        {/* <button
-                            onClick={() => alert('Button clicked')}
-                            style={{
-                                backgroundImage: `url(/Cursor.svg)`,
-                                backgroundSize: 'cover',
-                                backgroundRepeat: 'no-repeat',
-                                width: '3em',
-                                height: '3em',
-                                cursor: 'pointer',
-                                marginTop: '1em'
-                            }}
-                        /> */}
-                        <button
-                            onClick={() => setIsEraser(false)}
-                            className='pen-button'
-                        />
-                        <button
-                            onClick={() => setIsEraser(true)}
-                            className='eraser-button'
-                        />
+                        <button onClick={() => setIsEraser(false)} className='pen-button' />
+                        <button onClick={() => setIsEraser(true)} className='eraser-button' />
                     </div>
                 </div>
                 <canvas
@@ -184,7 +191,7 @@ function SessionPage() {
                 <div className='right-sidebar-container'>
                     <div className='right-sidebar'>
                         <Sketch
-                            style={{ marginTop: '1em', backgroundColor: "#323232", boxShadow: null }}
+                            style={{ marginTop: '1em', backgroundColor: "#323232" }}
                             color={hex}
                             disableAlpha={disableAlpha}
                             onChange={(color) => {
@@ -192,7 +199,6 @@ function SessionPage() {
                             }}
                         />
                         <SliderComponent onSliderChange={handleBrushSizeChange} />
-
                     </div>
                 </div>
             </div>
