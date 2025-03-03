@@ -18,7 +18,8 @@ function HomePage() {
     axios.post('http://localhost:8080/sessions', { userName: userName })
       .then((response) => {
         console.log('Session created:', response.data);
-        navigate(`/session/${response.data.session._id}`);
+        const { session, userIndex } = response.data;
+        navigate(`/session/${session._id}`, { state: { userIndex } });
       })
       .catch((error) => {
         console.error('There was an error creating the session!', error);
@@ -33,7 +34,8 @@ function HomePage() {
 
     axios.put(`http://localhost:8080/sessions/${sessionId}`, { userName: userName })
       .then((response) => {
-        navigate(`/session/${sessionId}`);
+        const { userIndex } = response.data;
+        navigate(`/session/${sessionId}`, { state: { userIndex } });
       })
       .catch((error) => {
         console.error('There was an error joining the session!', error);

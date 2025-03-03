@@ -4,11 +4,13 @@ import { useParams } from "react-router-dom";
 import Sketch from '@uiw/react-color-sketch';
 import './css/SessionPage.css';
 import SliderComponent from '../components/Slider';
-import { useBeforeUnload } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { useHotkeys } from 'react-hotkeys-hook'
 
 function SessionPage() {
     const { id } = useParams();
     const [data, setData] = useState();
+    const [users, setUsers] = useState();
     const [localCoords, setLocalCoords] = useState({ x: 0, y: 0 });
     const [lastCoords, setLastCoords] = useState({ x: 0, y: 0 });
     const [isDrawing, setIsDrawing] = useState(false);
@@ -20,8 +22,10 @@ function SessionPage() {
     const socketRef = useRef(null);
     const [commandStack, setCommandStack] = useState([]);
     const currentCommandRef = useRef(null);
-    const [currentCommandIndex, setCurrentCommandIndex] = useState(0)
-    const [backgroundImageData, setBackgroundImageData] = useState(null);
+    const [userCommandPointers, setUserCommandPointers] = useState({});
+    const [backgroundImageData, setBackgroundImageData] = useState(null); // Store background ImageData for efficient canvas redrawing
+    const { state } = useLocation();  // Get the state passed during navigation
+    const userIndex = state?.userIndex;  // Get the userIndex from state
 
     // Create WebSocket connection when the component mounts
     useEffect(() => {
@@ -44,18 +48,31 @@ function SessionPage() {
             // Handle incoming messages from other users
             socketRef.current.onmessage = (msg) => {
                 const receivedData = JSON.parse(msg.data);
-                console.log("Received drawing update:", receivedData);
+                console.log("Received websocket data:", receivedData);
 
-                // Apply the received drawing updates to the canvas
-                modifyImage(
-                    receivedData.lastCoords.x,
-                    receivedData.lastCoords.y,
-                    receivedData.newCoords.x,
-                    receivedData.newCoords.y,
-                    receivedData.hex,
-                    receivedData.brushSize,
-                    receivedData.isEraser
-                );
+                if (receivedData.action === 'sync') {
+                    // Update the command stack and pointers from server
+                    setCommandStack(receivedData.stack);
+                    setUserCommandPointers(receivedData.pointerMap);
+                    redrawCanvas(receivedData.stack, receivedData.pointerMap);
+                }
+                else if (receivedData.action === 'undoOperation' || receivedData.action === 'redoOperation') {
+                    // Handle specific undo/redo operations
+                    console.log(`Received ${receivedData.action} for user ${receivedData.userIndex}`);
+                    // No need to do anything here as we'll receive a sync message right after
+                }
+                else if (receivedData.lastCoords && receivedData.newCoords) {
+                    // Apply the received drawing updates to the canvas
+                    modifyImage(
+                        receivedData.lastCoords.x,
+                        receivedData.lastCoords.y,
+                        receivedData.newCoords.x,
+                        receivedData.newCoords.y,
+                        receivedData.hex,
+                        receivedData.brushSize,
+                        receivedData.isEraser
+                    );
+                }
             };
         }
         return () => {
@@ -66,11 +83,13 @@ function SessionPage() {
             }
         };
     }, [id]);
+
     useEffect(() => {
         // Fetch session data
         axios.get(`http://localhost:8080/sessions/${id}`)
             .then(response => {
                 setData(response.data.image);  // Set image data
+                setUsers(response.data.users);
             })
             .catch(error => {
                 console.error('Error fetching session data:', error);
@@ -83,55 +102,68 @@ function SessionPage() {
         }
     }, [data]);
 
+    useHotkeys('ctrl+z', () => undo(), [])
     // Function to undo the last action
     const undo = () => {
-        if (currentCommandIndex >= 0) {
-            setCurrentCommandIndex(currentCommandIndex - 1);
+        if (userIndex !== undefined) {
             socketRef.current.send(JSON.stringify({
                 action: 'undo',
-            }));
-        };
-    }
-
-    // Function to redo the undone action
-    const redo = () => {
-        if (currentCommandIndex < commandStack.length) {
-            setCurrentCommandIndex(currentCommandIndex + 1);
-            socketRef.current.send(JSON.stringify({
-                action: 'redo',
+                userIndex: userIndex
             }));
         }
     };
 
-    useEffect(() => {
-        // Log the current command stack at the updated index after the state has changed
-        if (currentCommandIndex >= 0 && currentCommandIndex < commandStack.length) {
-            redrawCanvas();
-            // console.log(commandStack[currentCommandIndex]);
+    useHotkeys('ctrl+y', () => redo(), [])
+    // Function to redo the undone action
+    const redo = () => {
+        if (userIndex !== undefined) {
+            socketRef.current.send(JSON.stringify({
+                action: 'redo',
+                userIndex: userIndex
+            }));
         }
-    }, [currentCommandIndex]);  // This effect will run when currentCommandIndex changes
-    
+    };
 
-    const redrawCanvas = () => {
+    // Complete canvas redraw function - rebuilds entire canvas from command history
+    const redrawCanvas = (stack = commandStack, pointerMap = userCommandPointers) => {
         const canvas = canvasRef.current;
+        if (!canvas) return;
+
         const ctx = canvas.getContext('2d');
-    
-        // Clear the canvas, but keep the background intact
+
+        // Clear the entire canvas - necessary because Canvas API is immediate-mode
+        // and has no built-in concept of layers or history
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-        // Redraw all commands up to the current command index
-        for (let i = 0; i <= currentCommandIndex; i++) {
-            const command = commandStack[i];
-    
+
+        // Reapply the background ImageData first
+        // This is critical because:
+        // 1. Canvas is stateless between redraws - clearRect wipes everything
+        // 2. We need a consistent starting point before drawing commands
+        // 3. This maintains the initial canvas state (usually white background)
+        if (backgroundImageData) {
+            ctx.putImageData(backgroundImageData, 0, 0);
+        }
+
+        // Draw all active strokes in the stack
+        // We're rebuilding the entire visual state from our command objects
+        // This enables non-destructive editing (undo/redo) without data loss
+        stack.forEach(command => {
+            // Skip inactive commands (those that were undone)
+            if (!command.active) return;
+
             if (command.type === 'background') {
-                // Draw the background image for this command
-                ctx.putImageData(command.imageData, 0, 0);
+                // Handle background image drawing
+                // Note: actual ImageData isn't stored in commands that go to server
+                // as it would be too large for efficient transmission
+                if (command.imageData) {
+                    ctx.putImageData(command.imageData, 0, 0);
+                }
             } else if (command.type === 'stroke') {
-                // Redraw strokes
-                ctx.strokeStyle = command.color;
+                // Draw stroke commands using their vector data
+                ctx.strokeStyle = command.isEraser ? 'rgb(255, 255, 255)' : command.color;
                 ctx.lineWidth = command.brushSize;
                 ctx.lineCap = 'round';
-    
+
                 command.segments.forEach(segment => {
                     ctx.beginPath();
                     ctx.moveTo(segment.startX, segment.startY);
@@ -139,10 +171,18 @@ function SessionPage() {
                     ctx.stroke();
                 });
             }
-        }
+        });
     };
-    
 
+    // Update the canvas when command stack or pointers change
+    useEffect(() => {
+        redrawCanvas();
+    }, [commandStack, userCommandPointers]);
+
+    // Vector-based command storage for a drawing operation
+    // This approach dramatically reduces network traffic compared to sending pixel data
+    // A bitmap approach would require sending the entire canvas state (potentially millions of pixels)
+    // Our vector approach only sends the essential drawing instructions (a few coordinates per stroke)
     const handleMouseDown = (event) => {
         setIsDrawing(true);
 
@@ -157,12 +197,23 @@ function SessionPage() {
 
         setLastCoords(newCoords);
 
-        // Start a new command (stroke) and capture the current drawing properties
+        // Create a new vector-based stroke command
+        // Instead of sending pixel data (bitmap approach), we store:
+        // 1. The start/end points of each line segment
+        // 2. Style information (color, brush size, etc.)
+        // 3. Type information (stroke vs eraser)
+        //
+        // Benefits:
+        // - Network efficiency: Sending coordinates uses far less bandwidth than pixel data
+        // - Scalability: Vector commands work at any resolution
+        // - Editability: Each stroke can be individually manipulated (undo/redo)
         currentCommandRef.current = {
-            segments: [],  // Will store each segment drawn during this stroke
+            type: 'stroke',
+            segments: [], // Will contain vector coordinates, not pixel data
             color: changeColor(),
             brushSize: brushSize,
-            isEraser: isEraser
+            isEraser: isEraser,
+            userIndex: userIndex
         };
     };
 
@@ -170,14 +221,19 @@ function SessionPage() {
         setIsDrawing(false);  // Stop drawing
         if (currentCommandRef.current) {
             const temp = currentCommandRef.current;
-            temp.type = 'stroke';  // Mark this as a stroke command
-            setCommandStack(prev => [...prev, temp]);
-            setCurrentCommandIndex(currentCommandIndex + 1);
+
+            // Send the drawing command to the backend via WebSocket
+            socketRef.current.send(JSON.stringify({
+                action: 'draw',
+                command: temp,
+                userIndex: userIndex
+            }));
+
             currentCommandRef.current = null;
         }
     };
-    
 
+    // Add stroke segments as vectors during mouse movement
     const handleMouseMove = event => {
         // Get the position of the canvas relative to the viewport
         const rect = canvasRef.current.getBoundingClientRect();
@@ -190,8 +246,9 @@ function SessionPage() {
         };
         setLocalCoords(newCoords);
 
-        // If the user is drawing, modify the image
+        // If the user is drawing, add a new vector segment
         if (isDrawing) {
+            // Send minimal vector data to other clients
             socketRef.current.send(JSON.stringify({
                 lastCoords,
                 newCoords,
@@ -199,7 +256,10 @@ function SessionPage() {
                 brushSize,
                 isEraser
             }));
-            // Record the current segment into the command
+
+            // Record the current segment as vector data
+            // This stores just two points (start/end) rather than all affected pixels
+            // A 100-pixel line would be just 4 numbers (2 coordinates) instead of 100+ pixel values
             if (currentCommandRef.current) {
                 currentCommandRef.current.segments.push({
                     startX: lastCoords.x,
@@ -208,6 +268,8 @@ function SessionPage() {
                     endY: newCoords.y
                 });
             }
+
+            // Draw the line on the local canvas
             modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y, changeColor(), brushSize, isEraser);
         }
     };
@@ -252,49 +314,50 @@ function SessionPage() {
         if (!data || data.length === 0 || data[0].length === 0) {
             return;
         }
-    
+
         const height = data.length;
         const width = data[0].length;
         const canvas = canvasRef.current;
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-    
+
         const imgData = ctx.createImageData(width, height);
         let index = 0;
-    
+
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const hexColor = data[y][x];
                 const red = convertToNumber(hexColor.substring(1, 3));
                 const green = convertToNumber(hexColor.substring(3, 5));
                 const blue = convertToNumber(hexColor.substring(5, 7));
-    
+
                 imgData.data[index + 0] = red;
                 imgData.data[index + 1] = green;
                 imgData.data[index + 2] = blue;
                 imgData.data[index + 3] = 255;
-    
+
                 index += 4;
             }
         }
-    
-        // Add background change as a command
-        const backgroundCommand = {
-            type: 'background',  // New command type for background change
-            imageData: imgData,   // Store the background image data
-        };
-    
-        setBackgroundImageData(imgData);  // Update the state for background image data
-    
-        // Add background change to command stack
-        setCommandStack(prev => [...prev, backgroundCommand]);
-        setCurrentCommandIndex(prevIndex => prevIndex + 1);
-    
+
+        // Store the background image data
+        setBackgroundImageData(imgData);
+
         // Draw the background
         ctx.putImageData(imgData, 0, 0);
+
+        // Add background change to the server as a command
+        socketRef.current.send(JSON.stringify({
+            action: 'draw',
+            command: {
+                type: 'background',
+                imageData: null, // We can't send the actual ImageData over WebSocket
+                userIndex: userIndex
+            },
+            userIndex: userIndex
+        }));
     };
-    
 
     return (
         <div className='session-page-container'>
@@ -324,6 +387,22 @@ function SessionPage() {
                             }}
                         />
                         <SliderComponent onSliderChange={handleBrushSizeChange} />
+                        <ul style={{
+                            listStyleType: 'none',
+                            padding: '0',
+                            margin: '0',
+                            color: 'white'
+                        }}>
+                            {users && users.map((user, index) => {
+                                return (
+                                    <li key={index} style={{
+                                        fontWeight: index === userIndex ? 'bold' : 'normal'
+                                    }}>
+                                        {index}: {user} {index === userIndex ? '(you)' : ''}
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
                 </div>
             </div>
