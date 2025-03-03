@@ -6,6 +6,24 @@ import './css/SessionPage.css';
 import SliderComponent from '../components/Slider';
 import { useLocation } from 'react-router-dom';
 import { useHotkeys } from 'react-hotkeys-hook'
+import { 
+    Paintbrush, 
+    Eraser, 
+    RotateCcw, 
+    RotateCw, 
+    Trash2, 
+    ChevronDown,
+    Square,
+    Circle,
+    Triangle,
+    Hexagon,
+    PaintBucket,
+    Eye,
+    EyeOff,
+    Plus,
+    Users,
+    Crown
+} from "lucide-react";
 
 function SessionPage() {
     const { id } = useParams();
@@ -23,9 +41,22 @@ function SessionPage() {
     const [commandStack, setCommandStack] = useState([]);
     const currentCommandRef = useRef(null);
     const [userCommandPointers, setUserCommandPointers] = useState({});
-    const [backgroundImageData, setBackgroundImageData] = useState(null); // Store background ImageData for efficient canvas redrawing
-    const { state } = useLocation();  // Get the state passed during navigation
-    const userIndex = state?.userIndex;  // Get the userIndex from state
+    const [backgroundImageData, setBackgroundImageData] = useState(null);
+    const { state } = useLocation();
+    const userIndex = state?.userIndex;
+    
+    // New state variables for UI enhancements
+    const [showUsersDropdown, setShowUsersDropdown] = useState(false);
+    const [currentTool, setCurrentTool] = useState('brush');
+    const [showShapeMenu, setShowShapeMenu] = useState(false);
+    const [selectedShape, setSelectedShape] = useState('square');
+    
+    // Mock layers data with thumbnail state
+    const [layers, setLayers] = useState([
+        { id: 1, name: 'Background', visible: true, active: false, thumbnail: null },
+        { id: 2, name: 'Layer 1', visible: true, active: true, thumbnail: null },
+        { id: 3, name: 'Layer 2', visible: true, active: false, thumbnail: null }
+    ]);
 
     // Create WebSocket connection when the component mounts
     useEffect(() => {
@@ -102,6 +133,41 @@ function SessionPage() {
         }
     }, [data]);
 
+    // Function to generate thumbnails for layers
+    const generateLayerThumbnails = () => {
+        if (!canvasRef.current) return;
+        
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const thumbnailWidth = 30;
+        const thumbnailHeight = 20;
+        
+        // Create a temporary canvas for thumbnail generation
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = thumbnailWidth;
+        tempCanvas.height = thumbnailHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Update thumbnails for all layers
+        setLayers(layers.map(layer => {
+            tempCtx.clearRect(0, 0, thumbnailWidth, thumbnailHeight);
+            // Scale down the main canvas to thumbnail size
+            tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, thumbnailWidth, thumbnailHeight);
+            
+            return {
+                ...layer,
+                thumbnail: tempCanvas.toDataURL()
+            };
+        }));
+    };
+
+    // Update thumbnails when canvas changes
+    useEffect(() => {
+        if (commandStack.length > 0) {
+            generateLayerThumbnails();
+        }
+    }, [commandStack]);
+
     useHotkeys('ctrl+z', () => undo(), [])
     // Function to undo the last action
     const undo = () => {
@@ -131,30 +197,21 @@ function SessionPage() {
 
         const ctx = canvas.getContext('2d');
 
-        // Clear the entire canvas - necessary because Canvas API is immediate-mode
-        // and has no built-in concept of layers or history
+        // Clear the entire canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Reapply the background ImageData first
-        // This is critical because:
-        // 1. Canvas is stateless between redraws - clearRect wipes everything
-        // 2. We need a consistent starting point before drawing commands
-        // 3. This maintains the initial canvas state (usually white background)
         if (backgroundImageData) {
             ctx.putImageData(backgroundImageData, 0, 0);
         }
 
         // Draw all active strokes in the stack
-        // We're rebuilding the entire visual state from our command objects
-        // This enables non-destructive editing (undo/redo) without data loss
         stack.forEach(command => {
             // Skip inactive commands (those that were undone)
             if (!command.active) return;
 
             if (command.type === 'background') {
                 // Handle background image drawing
-                // Note: actual ImageData isn't stored in commands that go to server
-                // as it would be too large for efficient transmission
                 if (command.imageData) {
                     ctx.putImageData(command.imageData, 0, 0);
                 }
@@ -172,6 +229,9 @@ function SessionPage() {
                 });
             }
         });
+        
+        // Update layer thumbnails after redrawing
+        generateLayerThumbnails();
     };
 
     // Update the canvas when command stack or pointers change
@@ -180,9 +240,6 @@ function SessionPage() {
     }, [commandStack, userCommandPointers]);
 
     // Vector-based command storage for a drawing operation
-    // This approach dramatically reduces network traffic compared to sending pixel data
-    // A bitmap approach would require sending the entire canvas state (potentially millions of pixels)
-    // Our vector approach only sends the essential drawing instructions (a few coordinates per stroke)
     const handleMouseDown = (event) => {
         setIsDrawing(true);
 
@@ -198,18 +255,9 @@ function SessionPage() {
         setLastCoords(newCoords);
 
         // Create a new vector-based stroke command
-        // Instead of sending pixel data (bitmap approach), we store:
-        // 1. The start/end points of each line segment
-        // 2. Style information (color, brush size, etc.)
-        // 3. Type information (stroke vs eraser)
-        //
-        // Benefits:
-        // - Network efficiency: Sending coordinates uses far less bandwidth than pixel data
-        // - Scalability: Vector commands work at any resolution
-        // - Editability: Each stroke can be individually manipulated (undo/redo)
         currentCommandRef.current = {
             type: 'stroke',
-            segments: [], // Will contain vector coordinates, not pixel data
+            segments: [],
             color: changeColor(),
             brushSize: brushSize,
             isEraser: isEraser,
@@ -258,8 +306,6 @@ function SessionPage() {
             }));
 
             // Record the current segment as vector data
-            // This stores just two points (start/end) rather than all affected pixels
-            // A 100-pixel line would be just 4 numbers (2 coordinates) instead of 100+ pixel values
             if (currentCommandRef.current) {
                 currentCommandRef.current.segments.push({
                     startX: lastCoords.x,
@@ -357,52 +403,214 @@ function SessionPage() {
             },
             userIndex: userIndex
         }));
+        
+        // Generate initial thumbnails
+        generateLayerThumbnails();
+    };
+
+    // Toggle users dropdown
+    const toggleUsersDropdown = () => {
+        setShowUsersDropdown(!showUsersDropdown);
+    };
+
+    // Handle shape selection
+    const handleShapeSelect = (shape) => {
+        setSelectedShape(shape);
+        setCurrentTool('shape');
+        setShowShapeMenu(false);
+    };
+
+    // Toggle layer visibility
+    const toggleLayerVisibility = (id) => {
+        setLayers(layers.map(layer => 
+            layer.id === id ? { ...layer, visible: !layer.visible } : layer
+        ));
+    };
+
+    // Set active layer
+    const setActiveLayer = (id) => {
+        setLayers(layers.map(layer => 
+            ({ ...layer, active: layer.id === id })
+        ));
+    };
+
+    // Add new layer
+    const addNewLayer = () => {
+        const newId = Math.max(...layers.map(layer => layer.id)) + 1;
+        setLayers([
+            ...layers, 
+            { 
+                id: newId, 
+                name: `Layer ${newId - 1}`, 
+                visible: true, 
+                active: false,
+                thumbnail: null
+            }
+        ]);
+    };
+
+    // Handle clear canvas
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Add clear action to server
+        socketRef.current.send(JSON.stringify({
+            action: 'clear',
+            userIndex: userIndex
+        }));
+    };
+
+    // Render shape icon based on selection
+    const renderSelectedShapeIcon = () => {
+        switch(selectedShape) {
+            case 'square': return <Square size={24} color="white" />;
+            case 'circle': return <Circle size={24} color="white" />;
+            case 'triangle': return <Triangle size={24} color="white" />;
+            case 'hexagon': return <Hexagon size={24} color="white" />;
+            default: return <Square size={24} color="white" />;
+        }
     };
 
     return (
         <div className='session-page-container'>
+            <div className='history-controls'>
+                <button onClick={() => undo()} className='tool-button undo-button'>
+                    <RotateCcw size={24} color="white" />
+                </button>
+                <button onClick={() => redo()} className='tool-button redo-button'>
+                    <RotateCw size={24} color="white" />
+                </button>
+                <button
+                    onClick={() => clearCanvas()}
+                    className='tool-button clear-button'>
+                    <Trash2 size={24} color="white" />
+                </button>
+                <div className="users-dropdown">
+                    <button onClick={toggleUsersDropdown} className="users-dropdown-button">
+                        <Users size={24} color="white" />
+                    </button>
+                    <div className={`users-dropdown-content ${showUsersDropdown ? 'show' : ''}`}>
+                        {users && users.map((user, index) => (
+                            <a 
+                                key={index} 
+                                href="#" 
+                                className={index === userIndex ? 'current-user' : ''}
+                                onClick={(e) => e.preventDefault()}
+                            >
+                                {index === 0 && <Crown size={14} color="gold" className="admin-crown" />}
+                                {user} {index === userIndex ? '(you)' : ''}
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            </div>
             <div className='body-container'>
                 <div className='left-sidebar-container'>
                     <div className='left-sidebar'>
-                        <button onClick={() => setIsEraser(false)} className='pen-button' />
-                        <button onClick={() => setIsEraser(true)} className='eraser-button' />
-                        <button onClick={() => undo()} className='undo-button' />
-                        <button onClick={() => redo()} className='redo-button' />
+                        <button
+                            onClick={() => { setIsEraser(false); setCurrentTool('brush'); }}
+                            className={`tool-button ${currentTool === 'brush' && !isEraser ? 'active' : ''}`}>
+                            <Paintbrush size={24} color="white" />
+                        </button>
+                        <button
+                            onClick={() => { setIsEraser(true); setCurrentTool('eraser'); }}
+                            className={`tool-button ${currentTool === 'eraser' || isEraser ? 'active' : ''}`}>
+                            <Eraser size={24} color="white" />
+                        </button>
+                        <button
+                            onClick={() => { setShowShapeMenu(!showShapeMenu); }}
+                            className={`tool-button ${currentTool === 'shape' ? 'active' : ''}`}>
+                            {renderSelectedShapeIcon()}
+                        </button>
+                        <button
+                            onClick={() => { setCurrentTool('paintbucket'); }}
+                            className={`tool-button ${currentTool === 'paintbucket' ? 'active' : ''}`}>
+                            <PaintBucket size={24} color="white" />
+                        </button>
+                        
+                        {/* Shape selection menu */}
+                        {showShapeMenu && (
+                            <div className="shape-menu">
+                                <div className="shape-option" onClick={() => handleShapeSelect('square')}>
+                                    <Square size={24} color="white" />
+                                </div>
+                                <div className="shape-option" onClick={() => handleShapeSelect('circle')}>
+                                    <Circle size={24} color="white" />
+                                </div>
+                                <div className="shape-option" onClick={() => handleShapeSelect('triangle')}>
+                                    <Triangle size={24} color="white" />
+                                </div>
+                                <div className="shape-option" onClick={() => handleShapeSelect('hexagon')}>
+                                    <Hexagon size={24} color="white" />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
-                <canvas
-                    onMouseMove={handleMouseMove}
-                    onMouseDown={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                    ref={canvasRef}
-                />
+                <div className='canvas-container'>
+                    <canvas
+                        onMouseMove={handleMouseMove}
+                        onMouseDown={handleMouseDown}
+                        onMouseUp={handleMouseUp}
+                        ref={canvasRef}
+                    />
+                </div>
                 <div className='right-sidebar-container'>
                     <div className='right-sidebar'>
-                        <Sketch
-                            style={{ marginTop: '1em', backgroundColor: "#323232" }}
-                            color={hex}
-                            disableAlpha={disableAlpha}
-                            onChange={(color) => {
-                                setHex(color.hex);
-                            }}
-                        />
-                        <SliderComponent onSliderChange={handleBrushSizeChange} />
-                        <ul style={{
-                            listStyleType: 'none',
-                            padding: '0',
-                            margin: '0',
-                            color: 'white'
-                        }}>
-                            {users && users.map((user, index) => {
-                                return (
-                                    <li key={index} style={{
-                                        fontWeight: index === userIndex ? 'bold' : 'normal'
-                                    }}>
-                                        {index}: {user} {index === userIndex ? '(you)' : ''}
+                        <div className="color-picker-container">
+                            <Sketch
+                                style={{ width: '100%', backgroundColor: "transparent" }}
+                                color={hex}
+                                disableAlpha={disableAlpha}
+                                onChange={(color) => {
+                                    setHex(color.hex);
+                                }}
+                            />
+                        </div>
+                        <div className="slider-container">
+                            <SliderComponent onSliderChange={handleBrushSizeChange} />
+                        </div>
+                        
+                        {/* Layers Section with Header + Add Button */}
+                        <div className="layers-section">
+                            <div className="layers-header">
+                                <span>Layers</span>
+                                <button className="add-layer-icon" onClick={addNewLayer}>
+                                    <Plus size={16} color="white" />
+                                </button>
+                            </div>
+                            <ul className="layers-list">
+                                {layers.map(layer => (
+                                    <li 
+                                        key={layer.id} 
+                                        className={`layer-item ${layer.active ? 'active' : ''}`}
+                                        onClick={() => setActiveLayer(layer.id)}
+                                    >
+                                        <span 
+                                            className="layer-visibility" 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleLayerVisibility(layer.id);
+                                            }}
+                                        >
+                                            {layer.visible ? 
+                                                <Eye size={16} color="white" /> : 
+                                                <EyeOff size={16} color="white" />
+                                            }
+                                        </span>
+                                        {/* Layer thumbnail */}
+                                        {layer.thumbnail && (
+                                            <div className="layer-thumbnail">
+                                                <img src={layer.thumbnail} alt="Layer preview" />
+                                            </div>
+                                        )}
+                                        <span className="layer-name">{layer.name}</span>
                                     </li>
-                                );
-                            })}
-                        </ul>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>

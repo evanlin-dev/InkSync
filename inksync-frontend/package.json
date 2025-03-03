@@ -34,6 +34,7 @@
     "@uiw/react-color-wheel": "^2.4.0",
     "@uiw/react-drag-event-interactive": "^2.4.0",
     "axios": "^1.7.9",
+    "lucide-react": "^0.477.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hotkeys-hook": "^4.6.1",
