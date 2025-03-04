@@ -6,7 +6,6 @@
     background-color: #1a1a1a;
     overflow: hidden;
     position: relative;
-    padding: 10px;
 }
 
 .body-container {
@@ -14,8 +13,7 @@
     gap: 2em;
     align-items: center;
     justify-content: center;
-    height: calc(100vh - 20px);
-    width: 100%;
+    height: calc(100vh - 110px);
     position: relative;
 }
 
@@ -163,6 +161,25 @@ button {
     background-size: 60%;
     background-position: center;
     background-repeat: no-repeat;
+}
+
+.download-button {
+    width: 3.5em;
+    height: 3.5em;
+    cursor: pointer;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.download-button:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 /* User dropdown styles */

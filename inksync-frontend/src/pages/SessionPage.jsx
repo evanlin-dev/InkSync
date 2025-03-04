@@ -22,7 +22,8 @@ import {
     EyeOff,
     Plus,
     Users,
-    Crown
+    Crown,
+    Download
 } from "lucide-react";
 
 function SessionPage() {
@@ -34,7 +35,7 @@ function SessionPage() {
     const [isDrawing, setIsDrawing] = useState(false);
     const [brushSize, setBrushSize] = useState(1);
     const [isEraser, setIsEraser] = useState(false);
-    const [hex, setHex] = useState("#fff");
+    const [hex, setHex] = useState("#000");
     const [disableAlpha, setDisableAlpha] = useState(true);
     const [editingLayerId, setEditingLayerId] = useState(null);
     const [editingLayerName, setEditingLayerName] = useState('');
@@ -229,7 +230,9 @@ function SessionPage() {
                 }
             } else if (command.type === 'stroke') {
                 // Draw stroke commands using their vector data
-                ctx.strokeStyle = command.isEraser ? 'rgb(255, 255, 255)' : command.color;
+                ctx.globalCompositeOperation = command.isEraser ? 'destination-out' : 'source-over';
+                
+                ctx.strokeStyle = command.isEraser ? 'rgba(0,0,0,1)' : command.color;
                 ctx.lineWidth = command.brushSize;
                 ctx.lineCap = 'round';
 
@@ -239,6 +242,8 @@ function SessionPage() {
                     ctx.lineTo(segment.endX, segment.endY);
                     ctx.stroke();
                 });
+
+                ctx.globalCompositeOperation = 'source-over';
             }
         });
     };
@@ -321,7 +326,7 @@ function SessionPage() {
             socketRef.current.send(JSON.stringify({
                 lastCoords,
                 newCoords,
-                hex,
+                hex: isEraser ? '#00000000' : hex,
                 brushSize,
                 isEraser
             }));
@@ -339,7 +344,15 @@ function SessionPage() {
             }
 
             // Draw the line on the local canvas
-            modifyImage(lastCoords.x, lastCoords.y, newCoords.x, newCoords.y, changeColor(), brushSize, isEraser);
+            modifyImage(
+                lastCoords.x,
+                lastCoords.y,
+                newCoords.x,
+                newCoords.y,
+                isEraser ? 'rgba(0,0,0,0)' : changeColor(),
+                brushSize,
+                isEraser
+            );
         }
     };
 
@@ -347,7 +360,9 @@ function SessionPage() {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
 
-        ctx.strokeStyle = eraser ? 'rgb(255, 255, 255)' : color;
+        ctx.globalCompositeOperation = eraser ? 'destination-out' : 'source-over';
+
+        ctx.strokeStyle = eraser ? 'rgba(0,0,0,1)' : color;
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
@@ -554,6 +569,11 @@ function SessionPage() {
                         ))}
                     </div>
                 </div>
+                <button
+                    className='tool-button download-button'
+                    title="Download Image">
+                    <Download size={24} color="white" />
+                </button>
             </div>
             <div className='body-container'>
                 <div className='left-sidebar-container'>
