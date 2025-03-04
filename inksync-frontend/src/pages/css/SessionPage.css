@@ -3,7 +3,6 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
     background-color: #1a1a1a;
     overflow: hidden;
     position: relative;
@@ -71,7 +70,7 @@ canvas {
 .right-sidebar {
     height: auto;
     max-height: 80vh;
-    width: 15dvw;
+    width: 11dvw;
     background: linear-gradient(135deg, #3a3a3a, #262626);
     border-radius: 20px;
     display: flex;
@@ -83,6 +82,7 @@ canvas {
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    overflow-x: hidden;
 }
 
 /* Custom scrollbar for browsers that support it */
@@ -102,7 +102,6 @@ canvas {
 /* Only show scrollbar when needed */
 .right-sidebar {
     overflow-y: auto;
-    overflow-y: overlay;
 }
 
 .history-controls {
@@ -114,7 +113,8 @@ canvas {
     flex-direction: row;
     padding: 10px 20px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    gap: 10px;
+    gap: 1em;
+    justify-content: center;
     align-items: center;
 }
 
@@ -123,6 +123,10 @@ canvas {
     border-radius: 12px !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
     margin-bottom: 20px !important;
+}
+
+.w-color-swatch {
+    display: none !important;
 }
 
 button {
@@ -134,7 +138,8 @@ button {
     width: 3.5em;
     height: 3.5em;
     cursor: pointer;
-    margin-top: 1em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
     border-radius: 50%;
     background-color: rgba(255, 255, 255, 0.15);
     display: flex;
@@ -164,21 +169,28 @@ button {
 .users-dropdown {
     position: relative;
     display: inline-block;
-    margin-left: 15px;
 }
 
 .users-dropdown-button {
+    width: 3.5em;
+    height: 3.5em;
     background: rgba(255, 255, 255, 0.15);
     color: white;
-    padding: 12px;
     border: none;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-top: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
+.users-dropdown-button:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
 
 .users-dropdown-content {
     display: none;
@@ -280,15 +292,48 @@ button {
     border-radius: 6px;
     margin-bottom: 8px;
     font-size: 13px;
+    gap: 10px;
 }
 
 .layer-item .layer-visibility {
-    margin-right: 8px;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .layer-item.active {
     background-color: rgba(72, 161, 255, 0.25);
+}
+
+.layer-item .layer-thumbnail {
+    width: 30px;
+    height: 20px;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.layer-name {
+    cursor: text;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+}
+/* Style for the layer name input when editing */
+.layer-name-input {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+}
+
+.layer-name-input:focus {
+    border-color: rgba(72, 161, 255, 0.6);
 }
 
 .add-layer-button {

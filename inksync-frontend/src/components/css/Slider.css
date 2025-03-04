@@ -6,12 +6,12 @@
 }
 
 input[type=range] {
-    height: 3em;
+    height: 2dvh;
     /* Set the height of the slider track */
     -webkit-appearance: none;
     /* Remove the default appearance in WebKit browsers */
     margin: 10px 0;
-    width: 10em;
+    width: 6dvw;
     /* Make the slider full width */
     background: none;
     outline: none;
@@ -29,7 +29,7 @@ input[type=range]:focus {
 /* WebKit track background with gradient to show fill on the left side of the thumb */
 input[type=range]::-webkit-slider-runnable-track {
     width: 100%;
-    height: 3em;
+    height: 2dvh;
     cursor: pointer;
     background: #ddd;
     /* Light gray background for the track */
@@ -58,7 +58,7 @@ input[type=range]::-webkit-slider-thumb {
 input[type=range]::-moz-range-track {
     width: 100%;
     /* Full width of the track */
-    height: 3em;
+    height: 2dvh;
     /* Ensure track height is consistent */
     background: #ddd;
     /* Light gray background for the track */
@@ -85,7 +85,7 @@ input[type=range]::-moz-range-thumb {
 /* Styling the track in Microsoft Edge and Internet Explorer */
 input[type=range]::-ms-track {
     width: 100%;
-    height: 3em;
+    height: 2dvh;
     cursor: pointer;
     background: transparent;
     /* Track background is transparent, controlled by other properties */
@@ -141,5 +141,5 @@ input[type=range]:focus::-ms-fill-upper {
 
 input[type=number] {
     width: 3em;
-    height: 2.6em;
+    height: 1.5dvh;
 }

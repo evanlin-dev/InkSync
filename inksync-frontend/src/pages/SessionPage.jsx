@@ -6,12 +6,12 @@ import './css/SessionPage.css';
 import SliderComponent from '../components/Slider';
 import { useLocation } from 'react-router-dom';
 import { useHotkeys } from 'react-hotkeys-hook'
-import { 
-    Paintbrush, 
-    Eraser, 
-    RotateCcw, 
-    RotateCw, 
-    Trash2, 
+import {
+    Paintbrush,
+    Eraser,
+    RotateCcw,
+    RotateCw,
+    Trash2,
     ChevronDown,
     Square,
     Circle,
@@ -36,21 +36,24 @@ function SessionPage() {
     const [isEraser, setIsEraser] = useState(false);
     const [hex, setHex] = useState("#fff");
     const [disableAlpha, setDisableAlpha] = useState(true);
+    const [editingLayerId, setEditingLayerId] = useState(null);
+    const [editingLayerName, setEditingLayerName] = useState('');
     const canvasRef = useRef(null);
     const socketRef = useRef(null);
     const [commandStack, setCommandStack] = useState([]);
     const currentCommandRef = useRef(null);
     const [userCommandPointers, setUserCommandPointers] = useState({});
+    // Store background ImageData for efficient canvas redrawing
     const [backgroundImageData, setBackgroundImageData] = useState(null);
     const { state } = useLocation();
     const userIndex = state?.userIndex;
-    
+
     // New state variables for UI enhancements
     const [showUsersDropdown, setShowUsersDropdown] = useState(false);
     const [currentTool, setCurrentTool] = useState('brush');
     const [showShapeMenu, setShowShapeMenu] = useState(false);
     const [selectedShape, setSelectedShape] = useState('square');
-    
+
     // Mock layers data with thumbnail state
     const [layers, setLayers] = useState([
         { id: 1, name: 'Background', visible: true, active: false, thumbnail: null },
@@ -136,24 +139,24 @@ function SessionPage() {
     // Function to generate thumbnails for layers
     const generateLayerThumbnails = () => {
         if (!canvasRef.current) return;
-        
+
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         const thumbnailWidth = 30;
         const thumbnailHeight = 20;
-        
+
         // Create a temporary canvas for thumbnail generation
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = thumbnailWidth;
         tempCanvas.height = thumbnailHeight;
         const tempCtx = tempCanvas.getContext('2d');
-        
+
         // Update thumbnails for all layers
         setLayers(layers.map(layer => {
             tempCtx.clearRect(0, 0, thumbnailWidth, thumbnailHeight);
             // Scale down the main canvas to thumbnail size
             tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, thumbnailWidth, thumbnailHeight);
-            
+
             return {
                 ...layer,
                 thumbnail: tempCanvas.toDataURL()
@@ -197,21 +200,30 @@ function SessionPage() {
 
         const ctx = canvas.getContext('2d');
 
-        // Clear the entire canvas
+        // Clear the entire canvas - necessary because Canvas API is immediate-mode
+        // and has no built-in concept of layers or history
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Reapply the background ImageData first
+        // This is critical because:
+        // 1. Canvas is stateless between redraws - clearRect wipes everything
+        // 2. We need a consistent starting point before drawing commands
+        // 3. This maintains the initial canvas state (usually white background)
         if (backgroundImageData) {
             ctx.putImageData(backgroundImageData, 0, 0);
         }
 
         // Draw all active strokes in the stack
+        // We're rebuilding the entire visual state from our command objects
+        // This enables non-destructive editing (undo/redo) without data loss
         stack.forEach(command => {
             // Skip inactive commands (those that were undone)
             if (!command.active) return;
 
             if (command.type === 'background') {
                 // Handle background image drawing
+                // Note: actual ImageData isn't stored in commands that go to server
+                // as it would be too large for efficient transmission
                 if (command.imageData) {
                     ctx.putImageData(command.imageData, 0, 0);
                 }
@@ -229,9 +241,6 @@ function SessionPage() {
                 });
             }
         });
-        
-        // Update layer thumbnails after redrawing
-        generateLayerThumbnails();
     };
 
     // Update the canvas when command stack or pointers change
@@ -240,6 +249,9 @@ function SessionPage() {
     }, [commandStack, userCommandPointers]);
 
     // Vector-based command storage for a drawing operation
+    // This approach dramatically reduces network traffic compared to sending pixel data
+    // A bitmap approach would require sending the entire canvas state (potentially millions of pixels)
+    // Our vector approach only sends the essential drawing instructions (a few coordinates per stroke)
     const handleMouseDown = (event) => {
         setIsDrawing(true);
 
@@ -255,9 +267,18 @@ function SessionPage() {
         setLastCoords(newCoords);
 
         // Create a new vector-based stroke command
+        // Instead of sending pixel data (bitmap approach), we store:
+        // 1. The start/end points of each line segment
+        // 2. Style information (color, brush size, etc.)
+        // 3. Type information (stroke vs eraser)
+        //
+        // Benefits:
+        // - Network efficiency: Sending coordinates uses far less bandwidth than pixel data
+        // - Scalability: Vector commands work at any resolution
+        // - Editability: Each stroke can be individually manipulated (undo/redo)
         currentCommandRef.current = {
             type: 'stroke',
-            segments: [],
+            segments: [], // Will contain vector coordinates, not pixel data
             color: changeColor(),
             brushSize: brushSize,
             isEraser: isEraser,
@@ -306,6 +327,8 @@ function SessionPage() {
             }));
 
             // Record the current segment as vector data
+            // This stores just two points (start/end) rather than all affected pixels
+            // A 100-pixel line would be just 4 numbers (2 coordinates) instead of 100+ pixel values
             if (currentCommandRef.current) {
                 currentCommandRef.current.segments.push({
                     startX: lastCoords.x,
@@ -403,7 +426,7 @@ function SessionPage() {
             },
             userIndex: userIndex
         }));
-        
+
         // Generate initial thumbnails
         generateLayerThumbnails();
     };
@@ -422,14 +445,14 @@ function SessionPage() {
 
     // Toggle layer visibility
     const toggleLayerVisibility = (id) => {
-        setLayers(layers.map(layer => 
+        setLayers(layers.map(layer =>
             layer.id === id ? { ...layer, visible: !layer.visible } : layer
         ));
     };
 
     // Set active layer
     const setActiveLayer = (id) => {
-        setLayers(layers.map(layer => 
+        setLayers(layers.map(layer =>
             ({ ...layer, active: layer.id === id })
         ));
     };
@@ -438,23 +461,49 @@ function SessionPage() {
     const addNewLayer = () => {
         const newId = Math.max(...layers.map(layer => layer.id)) + 1;
         setLayers([
-            ...layers, 
-            { 
-                id: newId, 
-                name: `Layer ${newId - 1}`, 
-                visible: true, 
+            ...layers,
+            {
+                id: newId,
+                name: `Layer ${newId - 1}`,
+                visible: true,
                 active: false,
                 thumbnail: null
             }
         ]);
     };
 
+    const startEditingLayerName = (id, currentName, e) => {
+        e.stopPropagation(); // Prevent activating the layer
+        setEditingLayerId(id);
+        setEditingLayerName(currentName);
+    };
+
+    const saveLayerName = () => {
+        if (editingLayerId !== null) {
+            setLayers(layers.map(layer =>
+                layer.id === editingLayerId
+                    ? { ...layer, name: editingLayerName }
+                    : layer
+            ));
+            setEditingLayerId(null);
+        }
+    };
+
+    const handleLayerNameKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            saveLayerName();
+        } else if (e.key === 'Escape') {
+            setEditingLayerId(null);
+        }
+    };
+
+
     // Handle clear canvas
     const clearCanvas = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         // Add clear action to server
         socketRef.current.send(JSON.stringify({
             action: 'clear',
@@ -464,7 +513,7 @@ function SessionPage() {
 
     // Render shape icon based on selection
     const renderSelectedShapeIcon = () => {
-        switch(selectedShape) {
+        switch (selectedShape) {
             case 'square': return <Square size={24} color="white" />;
             case 'circle': return <Circle size={24} color="white" />;
             case 'triangle': return <Triangle size={24} color="white" />;
@@ -493,9 +542,9 @@ function SessionPage() {
                     </button>
                     <div className={`users-dropdown-content ${showUsersDropdown ? 'show' : ''}`}>
                         {users && users.map((user, index) => (
-                            <a 
-                                key={index} 
-                                href="#" 
+                            <a
+                                key={index}
+                                href="#"
                                 className={index === userIndex ? 'current-user' : ''}
                                 onClick={(e) => e.preventDefault()}
                             >
@@ -529,7 +578,7 @@ function SessionPage() {
                             className={`tool-button ${currentTool === 'paintbucket' ? 'active' : ''}`}>
                             <PaintBucket size={24} color="white" />
                         </button>
-                        
+
                         {/* Shape selection menu */}
                         {showShapeMenu && (
                             <div className="shape-menu">
@@ -572,7 +621,7 @@ function SessionPage() {
                         <div className="slider-container">
                             <SliderComponent onSliderChange={handleBrushSizeChange} />
                         </div>
-                        
+
                         {/* Layers Section with Header + Add Button */}
                         <div className="layers-section">
                             <div className="layers-header">
@@ -583,30 +632,52 @@ function SessionPage() {
                             </div>
                             <ul className="layers-list">
                                 {layers.map(layer => (
-                                    <li 
-                                        key={layer.id} 
+                                    <li
+                                        key={layer.id}
                                         className={`layer-item ${layer.active ? 'active' : ''}`}
                                         onClick={() => setActiveLayer(layer.id)}
                                     >
-                                        <span 
-                                            className="layer-visibility" 
+                                        {/* Eye icon for visibility toggle */}
+                                        <span
+                                            className="layer-visibility"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 toggleLayerVisibility(layer.id);
                                             }}
                                         >
-                                            {layer.visible ? 
-                                                <Eye size={16} color="white" /> : 
+                                            {layer.visible ?
+                                                <Eye size={16} color="white" /> :
                                                 <EyeOff size={16} color="white" />
                                             }
                                         </span>
+
                                         {/* Layer thumbnail */}
                                         {layer.thumbnail && (
                                             <div className="layer-thumbnail">
                                                 <img src={layer.thumbnail} alt="Layer preview" />
                                             </div>
                                         )}
-                                        <span className="layer-name">{layer.name}</span>
+
+                                        {/* Layer name (editable) */}
+                                        {editingLayerId === layer.id ? (
+                                            <input
+                                                type="text"
+                                                value={editingLayerName}
+                                                onChange={(e) => setEditingLayerName(e.target.value)}
+                                                onKeyDown={handleLayerNameKeyDown}
+                                                onBlur={saveLayerName}
+                                                autoFocus
+                                                className="layer-name-input"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        ) : (
+                                            <span
+                                                className="layer-name"
+                                                onDoubleClick={(e) => startEditingLayerName(layer.id, layer.name, e)}
+                                            >
+                                                {layer.name}
+                                            </span>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
