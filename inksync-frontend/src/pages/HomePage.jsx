@@ -17,7 +17,6 @@ function HomePage() {
 
     axios.post('http://localhost:8080/sessions', { userName: userName })
       .then((response) => {
-        console.log('Session created:', response.data);
         const { session, userIndex } = response.data;
         navigate(`/session/${session._id}`, { state: { userIndex } });
       })
@@ -54,39 +53,48 @@ function HomePage() {
 
   return (
     <div className="home-page">
-      <h1>Welcome to the Home Page</h1>
+      <h1>Collaborate & Create</h1>
+      <div className="form-card">
+        <h2>Create a New Session</h2>
+        <div className="input-container">
+          <input
+            type="text"
+            value={newUserName}
+            onChange={(e) => handleSessionChange(e, 'newUserName')}
+            placeholder="Enter a name"
+            className="text-input"
+          />
+          <button
+            onClick={() => handleSessionCreation(newUserName)}
+            className="submit-button"
+          >
+            Create Session
+          </button>
+        </div>
 
-      <div className="input-container">
-        <input
-          type="text"
-          value={newUserName}
-          onChange={(e) => handleSessionChange(e, 'newUserName')}
-          placeholder="Enter a name"
-          className="text-input"
-        />
-        <button onClick={() => handleSessionCreation(newUserName)} className="submit-button">
-          Create Session
-        </button>
-      </div>
-
-      <div className="input-container">
-        <input
-          type="text"
-          value={joinUserName}
-          onChange={(e) => handleSessionChange(e, 'joinUserName')}
-          placeholder="Enter your name"
-          className="text-input"
-        />
-        <input
-          type="text"
-          value={activeSession}
-          onChange={(e) => handleSessionChange(e, 'activeSession')}
-          placeholder="Enter a session ID"
-          className="text-input"
-        />
-        <button onClick={() => handleSessionJoin(joinUserName, activeSession)} className="submit-button">
-          Join Session
-        </button>
+        <h2>Join an Existing Session</h2>
+        <div className="input-container">
+          <input
+            type="text"
+            value={joinUserName}
+            onChange={(e) => handleSessionChange(e, 'joinUserName')}
+            placeholder="Enter your name"
+            className="text-input"
+          />
+          <input
+            type="text"
+            value={activeSession}
+            onChange={(e) => handleSessionChange(e, 'activeSession')}
+            placeholder="Enter a session ID"
+            className="text-input"
+          />
+          <button
+            onClick={() => handleSessionJoin(joinUserName, activeSession)}
+            className="submit-button"
+          >
+            Join Session
+          </button>
+        </div>
       </div>
     </div>
   );

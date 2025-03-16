@@ -60,14 +60,6 @@ function SessionPage() {
     const [shapePreview, setShapePreview] = useState(null);
     const [isDrawingShape, setIsDrawingShape] = useState(false);
 
-
-    // Mock layers data with thumbnail state
-    const [layers, setLayers] = useState([
-        { id: 1, name: 'Background', visible: true, active: false, thumbnail: null },
-        { id: 2, name: 'Layer 1', visible: true, active: true, thumbnail: null },
-        { id: 3, name: 'Layer 2', visible: true, active: false, thumbnail: null }
-    ]);
-
     // Create WebSocket connection when the component mounts
     useEffect(() => {
         if (!socketRef.current) {
@@ -142,41 +134,6 @@ function SessionPage() {
             arrayToImage(); // Update canvas with fetched image data
         }
     }, [data]);
-
-    // Function to generate thumbnails for layers
-    const generateLayerThumbnails = () => {
-        if (!canvasRef.current) return;
-
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        const thumbnailWidth = 30;
-        const thumbnailHeight = 20;
-
-        // Create a temporary canvas for thumbnail generation
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = thumbnailWidth;
-        tempCanvas.height = thumbnailHeight;
-        const tempCtx = tempCanvas.getContext('2d');
-
-        // Update thumbnails for all layers
-        setLayers(layers.map(layer => {
-            tempCtx.clearRect(0, 0, thumbnailWidth, thumbnailHeight);
-            // Scale down the main canvas to thumbnail size
-            tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, thumbnailWidth, thumbnailHeight);
-
-            return {
-                ...layer,
-                thumbnail: tempCanvas.toDataURL()
-            };
-        }));
-    };
-
-    // Update thumbnails when canvas changes
-    useEffect(() => {
-        if (commandStack.length > 0) {
-            generateLayerThumbnails();
-        }
-    }, [commandStack]);
 
     useHotkeys('ctrl+z', () => undo(), [])
     // Function to undo the last action
@@ -617,9 +574,6 @@ function SessionPage() {
             },
             userIndex: userIndex
         }));
-
-        // Generate initial thumbnails
-        generateLayerThumbnails();
     };
 
     // Toggle users dropdown
@@ -632,74 +586,6 @@ function SessionPage() {
         setSelectedShape(shape);
         setCurrentTool('shape');
         setShowShapeMenu(false);
-    };
-
-    // Toggle layer visibility
-    const toggleLayerVisibility = (id) => {
-        setLayers(layers.map(layer =>
-            layer.id === id ? { ...layer, visible: !layer.visible } : layer
-        ));
-    };
-
-    // Set active layer
-    const setActiveLayer = (id) => {
-        setLayers(layers.map(layer =>
-            ({ ...layer, active: layer.id === id })
-        ));
-    };
-
-    // Add new layer
-    const addNewLayer = () => {
-        const newId = Math.max(...layers.map(layer => layer.id)) + 1;
-        setLayers([
-            ...layers,
-            {
-                id: newId,
-                name: `Layer ${newId - 1}`,
-                visible: true,
-                active: false,
-                thumbnail: null
-            }
-        ]);
-    };
-
-    const startEditingLayerName = (id, currentName, e) => {
-        e.stopPropagation(); // Prevent activating the layer
-        setEditingLayerId(id);
-        setEditingLayerName(currentName);
-    };
-
-    const saveLayerName = () => {
-        if (editingLayerId !== null) {
-            setLayers(layers.map(layer =>
-                layer.id === editingLayerId
-                    ? { ...layer, name: editingLayerName }
-                    : layer
-            ));
-            setEditingLayerId(null);
-        }
-    };
-
-    const handleLayerNameKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            saveLayerName();
-        } else if (e.key === 'Escape') {
-            setEditingLayerId(null);
-        }
-    };
-
-
-    // Handle clear canvas
-    const clearCanvas = () => {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Add clear action to server
-        socketRef.current.send(JSON.stringify({
-            action: 'clear',
-            userIndex: userIndex
-        }));
     };
 
     // Render shape icon based on selection
@@ -722,11 +608,6 @@ function SessionPage() {
                 <button onClick={() => redo()} className='tool-button redo-button'>
                     <RotateCw size={24} color="white" />
                 </button>
-                <button
-                    onClick={() => clearCanvas()}
-                    className='tool-button clear-button'>
-                    <Trash2 size={24} color="white" />
-                </button>
                 <div className="users-dropdown">
                     <button onClick={toggleUsersDropdown} className="users-dropdown-button">
                         <Users size={24} color="white" />
@@ -745,11 +626,6 @@ function SessionPage() {
                         ))}
                     </div>
                 </div>
-                <button
-                    className='tool-button download-button'
-                    title="Download Image">
-                    <Download size={24} color="white" />
-                </button>
             </div>
             <div className='body-container'>
                 <div className='left-sidebar-container'>
@@ -787,11 +663,6 @@ function SessionPage() {
                                 </div>
                             )}
                         </button>
-                        <button
-                            onClick={() => { setCurrentTool('paintbucket'); }}
-                            className={`tool-button ${currentTool === 'paintbucket' ? 'active' : ''}`}>
-                            <PaintBucket size={24} color="white" />
-                        </button>
                     </div>
                 </div>
                 <div className='canvas-container'>
@@ -816,67 +687,6 @@ function SessionPage() {
                         </div>
                         <div className="slider-container">
                             <SliderComponent onSliderChange={handleBrushSizeChange} />
-                        </div>
-
-                        {/* Layers Section with Header + Add Button */}
-                        <div className="layers-section">
-                            <div className="layers-header">
-                                <span>Layers</span>
-                                <button className="add-layer-icon" onClick={addNewLayer}>
-                                    <Plus size={16} color="white" />
-                                </button>
-                            </div>
-                            <ul className="layers-list">
-                                {layers.map(layer => (
-                                    <li
-                                        key={layer.id}
-                                        className={`layer-item ${layer.active ? 'active' : ''}`}
-                                        onClick={() => setActiveLayer(layer.id)}
-                                    >
-                                        {/* Eye icon for visibility toggle */}
-                                        <span
-                                            className="layer-visibility"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                toggleLayerVisibility(layer.id);
-                                            }}
-                                        >
-                                            {layer.visible ?
-                                                <Eye size={16} color="white" /> :
-                                                <EyeOff size={16} color="white" />
-                                            }
-                                        </span>
-
-                                        {/* Layer thumbnail */}
-                                        {layer.thumbnail && (
-                                            <div className="layer-thumbnail">
-                                                <img src={layer.thumbnail} alt="Layer preview" />
-                                            </div>
-                                        )}
-
-                                        {/* Layer name (editable) */}
-                                        {editingLayerId === layer.id ? (
-                                            <input
-                                                type="text"
-                                                value={editingLayerName}
-                                                onChange={(e) => setEditingLayerName(e.target.value)}
-                                                onKeyDown={handleLayerNameKeyDown}
-                                                onBlur={saveLayerName}
-                                                autoFocus
-                                                className="layer-name-input"
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                        ) : (
-                                            <span
-                                                className="layer-name"
-                                                onDoubleClick={(e) => startEditingLayerName(layer.id, layer.name, e)}
-                                            >
-                                                {layer.name}
-                                            </span>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
                         </div>
                     </div>
                 </div>

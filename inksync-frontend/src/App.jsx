@@ -4,6 +4,7 @@ import { decode } from '@msgpack/msgpack';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from './pages/HomePage';
 import SessionPage from './pages/SessionPage';
+import LandingPage from './pages/LandingPage';
 
 function App() {
   // const [message, setMessage] = useState('');
@@ -144,7 +145,8 @@ function App() {
       </ul> */}
     <Router>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/session/:id" element={<SessionPage />} />
       </Routes>
     </Router>
