@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-app.use(express.raw({ type: 'application/x-msgpack' }));  // Expect raw binary data (MessagePack)
+app.use(express.raw({ type: 'application/x-msgpack' }));  // Expect raw binary data (MessagePack) 
 
 const mongoURI = process.env.MONGO_URI;
 
@@ -101,19 +101,19 @@ wss.on('connection', (ws, req) => {
           console.log(`User ${userIdx} has no commands to undo`);
           return;
         }
-        
+
         // Get the current pointer for this user
         let pointer = (typeof userCommandPointerMap[sessionId][userIdx] === 'number'
-                        ? userCommandPointerMap[sessionId][userIdx]
-                        : userCommands.length);
-                        
+          ? userCommandPointerMap[sessionId][userIdx]
+          : userCommands.length);
+
         if (pointer > 0) {
           const cmdIndex = userCommands[pointer - 1];
           if (commandStack[sessionId][cmdIndex].active) {
             commandStack[sessionId][cmdIndex].active = false;
             userCommandPointerMap[sessionId][userIdx] = pointer - 1;
             console.log(`User ${userIdx} undid command at global index ${cmdIndex}`);
-            
+
             // Broadcast the specific undo operation to all clients
             broadcastToSession({
               action: 'undoOperation',
@@ -122,19 +122,19 @@ wss.on('connection', (ws, req) => {
             });
           }
         }
-        
+
         // Sync updated state with all clients
         // This works well for small to medium sessions but could become problematic with:
-          // Large numbers of drawing operations
-          // Many concurrent users
-          // Complex drawings
+        // Large numbers of drawing operations
+        // Many concurrent users
+        // Complex drawings
         broadcastToSession({
           action: 'sync',
           stack: commandStack[sessionId],
           pointerMap: userCommandPointerMap[sessionId]
         });
       }
-      
+
       // For redo:
       else if (data.action === 'redo') {
         const userIdx = data.userIndex;
@@ -143,18 +143,18 @@ wss.on('connection', (ws, req) => {
           console.log(`User ${userIdx} has no commands to redo`);
           return;
         }
-        
+
         let pointer = (typeof userCommandPointerMap[sessionId][userIdx] === 'number'
-                        ? userCommandPointerMap[sessionId][userIdx]
-                        : userCommands.length);
-                        
+          ? userCommandPointerMap[sessionId][userIdx]
+          : userCommands.length);
+
         if (pointer < userCommands.length) {
           const cmdIndex = userCommands[pointer];
           if (!commandStack[sessionId][cmdIndex].active) {
             commandStack[sessionId][cmdIndex].active = true;
             userCommandPointerMap[sessionId][userIdx] = pointer + 1;
             console.log(`User ${userIdx} redid command at global index ${cmdIndex}`);
-            
+
             // Broadcast the specific redo operation to all clients
             broadcastToSession({
               action: 'redoOperation',
@@ -163,7 +163,7 @@ wss.on('connection', (ws, req) => {
             });
           }
         }
-        
+
         // Sync updated state with all clients
         broadcastToSession({
           action: 'sync',
@@ -328,6 +328,10 @@ app.put('/sessions/:id', async (req, res) => {
     }
 
     const decodedData = msgpack.decode(session.data);
+
+    if (!userIndexMap[session._id]) {
+      userIndexMap[session._id] = {};
+    }
 
     // Add new user if available
     let newUserIndex;
