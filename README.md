@@ -100,11 +100,6 @@ InkSync is a real-time collaborative drawing application that allows multiple us
 
 **1. Live Demo: Creating and Joining Sessions**  
 **Description:** A live demo showing session creation, joining, and real-time drawing collaboration between multiple users.  
-<video width="640" controls>
-  <source src="https://raw.githubusercontent.com/evanlin-dev/InkSync/main/video1.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-<video width="640" controls>
-  <source src="https://raw.githubusercontent.com/evanlin-dev/InkSync/main/video2.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[Watch Video](https://raw.githubusercontent.com/evanlin-dev/InkSync/main/video1.mp4)
+[Watch Video](https://raw.githubusercontent.com/evanlin-dev/InkSync/main/video2.mp4)
+
