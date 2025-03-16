@@ -253,7 +253,8 @@ button {
 /* Shape selector menu */
 .shape-menu {
     position: absolute;
-    left: 7em;
+    right: 100%;
+    top: 0;
     background: linear-gradient(180deg, #424242, #323232);
     border-radius: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
@@ -262,8 +263,8 @@ button {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     z-index: 20;
+    margin-right: 10px;
 }
-
 .shape-option {
     width: 40px;
     height: 40px;

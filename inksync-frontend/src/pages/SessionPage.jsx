@@ -49,11 +49,17 @@ function SessionPage() {
     const { state } = useLocation();
     const userIndex = state?.userIndex;
 
-    // New state variables for UI enhancements
     const [showUsersDropdown, setShowUsersDropdown] = useState(false);
     const [currentTool, setCurrentTool] = useState('brush');
     const [showShapeMenu, setShowShapeMenu] = useState(false);
     const [selectedShape, setSelectedShape] = useState('square');
+    const shapeButtonRef = useRef(null);
+
+    // Add these new state hooks near your other state declarations
+    const [shapeStartCoords, setShapeStartCoords] = useState({ x: 0, y: 0 });
+    const [shapePreview, setShapePreview] = useState(null);
+    const [isDrawingShape, setIsDrawingShape] = useState(false);
+
 
     // Mock layers data with thumbnail state
     const [layers, setLayers] = useState([
@@ -231,7 +237,7 @@ function SessionPage() {
             } else if (command.type === 'stroke') {
                 // Draw stroke commands using their vector data
                 ctx.globalCompositeOperation = command.isEraser ? 'destination-out' : 'source-over';
-                
+
                 ctx.strokeStyle = command.isEraser ? 'rgba(0,0,0,1)' : command.color;
                 ctx.lineWidth = command.brushSize;
                 ctx.lineCap = 'round';
@@ -244,10 +250,21 @@ function SessionPage() {
                 });
 
                 ctx.globalCompositeOperation = 'source-over';
+            } else if (command.type === 'shape') {
+                // Draw shape commands
+                drawShape(
+                    command.startX,
+                    command.startY,
+                    command.endX,
+                    command.endY,
+                    command.shapeType,
+                    command.isEraser ? 'rgba(0,0,0,1)' : command.color,
+                    command.brushSize,
+                    false // Not a preview
+                );
             }
         });
     };
-
     // Update the canvas when command stack or pointers change
     useEffect(() => {
         redrawCanvas();
@@ -258,8 +275,6 @@ function SessionPage() {
     // A bitmap approach would require sending the entire canvas state (potentially millions of pixels)
     // Our vector approach only sends the essential drawing instructions (a few coordinates per stroke)
     const handleMouseDown = (event) => {
-        setIsDrawing(true);
-
         const rect = canvasRef.current.getBoundingClientRect();
         const scaleX = canvasRef.current.width / rect.width;
         const scaleY = canvasRef.current.height / rect.height;
@@ -271,39 +286,103 @@ function SessionPage() {
 
         setLastCoords(newCoords);
 
-        // Create a new vector-based stroke command
-        // Instead of sending pixel data (bitmap approach), we store:
-        // 1. The start/end points of each line segment
-        // 2. Style information (color, brush size, etc.)
-        // 3. Type information (stroke vs eraser)
-        //
-        // Benefits:
-        // - Network efficiency: Sending coordinates uses far less bandwidth than pixel data
-        // - Scalability: Vector commands work at any resolution
-        // - Editability: Each stroke can be individually manipulated (undo/redo)
-        currentCommandRef.current = {
-            type: 'stroke',
-            segments: [], // Will contain vector coordinates, not pixel data
-            color: changeColor(),
-            brushSize: brushSize,
-            isEraser: isEraser,
-            userIndex: userIndex
-        };
+        if (currentTool === 'shape') {
+            // For shapes, we just record the starting position and wait for mouse up
+            setShapeStartCoords(newCoords);
+            setIsDrawingShape(true);
+
+            // Create a temporary canvas for shape preview if not already created
+            if (!shapePreview) {
+                const preview = document.createElement('canvas');
+                preview.width = canvasRef.current.width;
+                preview.height = canvasRef.current.height;
+                setShapePreview(preview);
+            }
+        } else {
+            setIsDrawing(true);
+
+            // Create a new vector-based stroke command
+            // Instead of sending pixel data (bitmap approach), we store:
+            // 1. The start/end points of each line segment
+            // 2. Style information (color, brush size, etc.)
+            // 3. Type information (stroke vs eraser)
+            //
+            // Benefits:
+            // - Network efficiency: Sending coordinates uses far less bandwidth than pixel data
+            // - Scalability: Vector commands work at any resolution
+            // - Editability: Each stroke can be individually manipulated (undo/redo)
+            currentCommandRef.current = {
+                type: 'stroke',
+                segments: [], // Will contain vector coordinates, not pixel data
+                color: changeColor(),
+                brushSize: brushSize,
+                isEraser: isEraser,
+                userIndex: userIndex
+            };
+        }
     };
 
-    const handleMouseUp = () => {
-        setIsDrawing(false);  // Stop drawing
-        if (currentCommandRef.current) {
-            const temp = currentCommandRef.current;
 
-            // Send the drawing command to the backend via WebSocket
+    const handleMouseUp = (event) => {
+        if (isDrawingShape) {
+            setIsDrawingShape(false);
+
+            const rect = canvasRef.current.getBoundingClientRect();
+            const scaleX = canvasRef.current.width / rect.width;
+            const scaleY = canvasRef.current.height / rect.height;
+
+            const endCoords = {
+                x: (event.clientX - rect.left) * scaleX,
+                y: (event.clientY - rect.top) * scaleY,
+            };
+
+            // Draw the final shape on the main canvas
+            drawShape(
+                shapeStartCoords.x,
+                shapeStartCoords.y,
+                endCoords.x,
+                endCoords.y,
+                selectedShape,
+                isEraser ? 'rgba(0,0,0,0)' : changeColor(),
+                brushSize,
+                false // preview = false means this is the final shape
+            );
+
+            // Create a shape command and send it to the server
+            const shapeCommand = {
+                type: 'shape',
+                shapeType: selectedShape,
+                startX: shapeStartCoords.x,
+                startY: shapeStartCoords.y,
+                endX: endCoords.x,
+                endY: endCoords.y,
+                color: isEraser ? '#00000000' : hex,
+                brushSize: brushSize,
+                isEraser: isEraser,
+                userIndex: userIndex,
+                active: true
+            };
+
+            // Send the shape command to the server
             socketRef.current.send(JSON.stringify({
                 action: 'draw',
-                command: temp,
+                command: shapeCommand,
                 userIndex: userIndex
             }));
+        } else {
+            setIsDrawing(false);  // Stop drawing
+            if (currentCommandRef.current) {
+                const temp = currentCommandRef.current;
 
-            currentCommandRef.current = null;
+                // Send the drawing command to the backend via WebSocket
+                socketRef.current.send(JSON.stringify({
+                    action: 'draw',
+                    command: temp,
+                    userIndex: userIndex
+                }));
+
+                currentCommandRef.current = null;
+            }
         }
     };
 
@@ -320,8 +399,38 @@ function SessionPage() {
         };
         setLocalCoords(newCoords);
 
-        // If the user is drawing, add a new vector segment
-        if (isDrawing) {
+        // Handle shape preview while dragging
+        if (isDrawingShape && currentTool === 'shape') {
+            // Clear the preview canvas and draw the shape preview
+            if (shapePreview) {
+                const previewCtx = shapePreview.getContext('2d');
+                previewCtx.clearRect(0, 0, shapePreview.width, shapePreview.height);
+
+                // Draw the shape on the preview canvas
+                drawShape(
+                    shapeStartCoords.x,
+                    shapeStartCoords.y,
+                    newCoords.x,
+                    newCoords.y,
+                    selectedShape,
+                    isEraser ? 'rgba(0,0,0,0)' : changeColor(),
+                    brushSize,
+                    true // preview = true
+                );
+
+                // Draw the preview on the main canvas
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+
+                // First redraw the canvas to clear previous preview
+                redrawCanvas();
+
+                // Then draw the preview
+                ctx.drawImage(shapePreview, 0, 0);
+            }
+        }
+        // If the user is drawing with brush, add a new vector segment
+        else if (isDrawing) {
             // Send minimal vector data to other clients
             socketRef.current.send(JSON.stringify({
                 lastCoords,
@@ -354,6 +463,73 @@ function SessionPage() {
                 isEraser
             );
         }
+    };
+
+    // Add the drawShape function to handle different shape types
+    const drawShape = (startX, startY, endX, endY, shapeType, color, size, isPreview) => {
+        const canvas = isPreview ? shapePreview : canvasRef.current;
+        const ctx = canvas.getContext('2d');
+
+        // Set drawing properties
+        ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+        ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : color;
+        ctx.fillStyle = isEraser ? 'rgba(0,0,0,1)' : color;
+        ctx.lineWidth = size;
+
+        // Calculate dimensions
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+        const topLeftX = Math.min(startX, endX);
+        const topLeftY = Math.min(startY, endY);
+
+        ctx.beginPath();
+
+        // Draw the appropriate shape
+        switch (shapeType) {
+            case 'square':
+                ctx.rect(topLeftX, topLeftY, width, height);
+                break;
+            case 'circle':
+                // For a circle, we use the center point and radius
+                const centerX = (startX + endX) / 2;
+                const centerY = (startY + endY) / 2;
+                const radius = Math.max(width, height) / 2;
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                break;
+            case 'triangle':
+                // Draw an equilateral triangle
+                ctx.moveTo(startX, endY);
+                ctx.lineTo(endX, endY);
+                ctx.lineTo((startX + endX) / 2, startY);
+                ctx.closePath();
+                break;
+            case 'hexagon':
+                // Draw a hexagon centered at the midpoint
+                const hexCenterX = (startX + endX) / 2;
+                const hexCenterY = (startY + endY) / 2;
+                const hexRadius = Math.max(width, height) / 2;
+
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI / 3) * i;
+                    const x = hexCenterX + hexRadius * Math.cos(angle);
+                    const y = hexCenterY + hexRadius * Math.sin(angle);
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+                break;
+            default:
+                break;
+        }
+
+        // Draw outline or filled shape based on preference
+        // You could make this a user setting later
+        ctx.stroke(); // For just the outline
+        // ctx.fill(); // Uncomment for filled shapes
     };
 
     const modifyImage = (startX, startY, endX, endY, color, size, eraser) => {
@@ -589,33 +765,33 @@ function SessionPage() {
                             <Eraser size={24} color="white" />
                         </button>
                         <button
+                            ref={shapeButtonRef}
                             onClick={() => { setShowShapeMenu(!showShapeMenu); }}
-                            className={`tool-button ${currentTool === 'shape' ? 'active' : ''}`}>
+                            className={`tool-button ${currentTool === 'shape' ? 'active' : ''}`}
+                            style={{ position: 'relative' }}>
                             {renderSelectedShapeIcon()}
+                            {showShapeMenu && (
+                                <div className="shape-menu">
+                                    <div className="shape-option" onClick={() => handleShapeSelect('square')}>
+                                        <Square size={24} color="white" />
+                                    </div>
+                                    <div className="shape-option" onClick={() => handleShapeSelect('circle')}>
+                                        <Circle size={24} color="white" />
+                                    </div>
+                                    <div className="shape-option" onClick={() => handleShapeSelect('triangle')}>
+                                        <Triangle size={24} color="white" />
+                                    </div>
+                                    <div className="shape-option" onClick={() => handleShapeSelect('hexagon')}>
+                                        <Hexagon size={24} color="white" />
+                                    </div>
+                                </div>
+                            )}
                         </button>
                         <button
                             onClick={() => { setCurrentTool('paintbucket'); }}
                             className={`tool-button ${currentTool === 'paintbucket' ? 'active' : ''}`}>
                             <PaintBucket size={24} color="white" />
                         </button>
-
-                        {/* Shape selection menu */}
-                        {showShapeMenu && (
-                            <div className="shape-menu">
-                                <div className="shape-option" onClick={() => handleShapeSelect('square')}>
-                                    <Square size={24} color="white" />
-                                </div>
-                                <div className="shape-option" onClick={() => handleShapeSelect('circle')}>
-                                    <Circle size={24} color="white" />
-                                </div>
-                                <div className="shape-option" onClick={() => handleShapeSelect('triangle')}>
-                                    <Triangle size={24} color="white" />
-                                </div>
-                                <div className="shape-option" onClick={() => handleShapeSelect('hexagon')}>
-                                    <Hexagon size={24} color="white" />
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
                 <div className='canvas-container'>
