@@ -99,13 +99,12 @@ InkSync is a real-time collaborative drawing application that allows multiple us
 ## Video Demos
 
 **1. Live Demo: Creating and Joining Sessions**  
-**Video Title:** *InkSync Live Demo: Collaborative Drawing in Action*  
 **Description:** A live demo showing session creation, joining, and real-time drawing collaboration between multiple users.  
 <video width="640" controls>
-  <source src="2025-03-16 13-46-17.mp4" type="video/mp4">
+  <source src="./video1.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 <video width="640" controls>
-  <source src="2025-03-16 13-46-20.mp4" type="video/mp4">
+  <source src="./video1.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
