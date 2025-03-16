@@ -290,19 +290,15 @@ app.post('/sessions', async (req, res) => {
     commandStack[session._id] = []
 
     // Get session ID and create the dynamic route for the WebSocket
-    let socket; // declare socket variable
-    if (process.env.NODE_ENV !== 'production') {
-      // For local development, use localhost WebSocket
-      const dynamicRoute = `/${session._id}`;
-      const backendWsUrl = `ws://localhost:8080${dynamicRoute}`;
-      console.log(`WebSocket dynamic route (dev): ${backendWsUrl}`);
-      socket = new WebSocket(backendWsUrl);
-      socket.on('open', () => console.log('WebSocket connection opened'));
-      // You can add additional socket event handlers here
-    } else {
-      // In production, either skip or use a different WebSocket server
-      console.log('Skipping WebSocket connection in production');
-    }
+    const dynamicRoute = `/${session._id}`;
+    console.log(`WebSocket dynamic route: ws://localhost:8080${dynamicRoute}`);
+
+    // Optionally: You can establish a WebSocket connection here if needed
+    const socket = new WebSocket(`ws://localhost:8080${dynamicRoute}`);
+
+    socket.on('open', () => {
+      console.log('WebSocket connection opened to dynamic route');
+    });
 
     // socket.on('message', (msg) => {
     //   console.log('Received from WebSocket server:', msg);
@@ -354,19 +350,8 @@ app.put('/sessions/:id', async (req, res) => {
     await session.save();
 
     // Get session ID and create the dynamic route for the WebSocket
-    let socket; // declare socket variable
-    if (process.env.NODE_ENV !== 'production') {
-      // For local development, use localhost WebSocket
-      const dynamicRoute = `/${session._id}`;
-      const backendWsUrl = `ws://localhost:8080${dynamicRoute}`;
-      console.log(`WebSocket dynamic route (dev): ${backendWsUrl}`);
-      socket = new WebSocket(backendWsUrl);
-      socket.on('open', () => console.log('WebSocket connection opened'));
-      // You can add additional socket event handlers here
-    } else {
-      // In production, either skip or use a different WebSocket server
-      console.log('Skipping WebSocket connection in production');
-    }
+    const dynamicRoute = `/${session._id}`;
+    console.log(`WebSocket dynamic route: ws://localhost:8080${dynamicRoute}`);
 
     res.json({ message: 'Session modified', userIndex: newUserIndex });  // Return the user index of the newly added user
   } catch (err) {
@@ -376,7 +361,6 @@ app.put('/sessions/:id', async (req, res) => {
 });
 
 const port = 8080;
-// server.listen(port, () => {
-//   console.log(`Server started on port ${port}`);
-// });
-module.exports = app;
+server.listen(port, () => {
+  console.log(`Server started on port ${port}`);
+});
