@@ -291,10 +291,10 @@ app.post('/sessions', async (req, res) => {
 
     // Get session ID and create the dynamic route for the WebSocket
     const dynamicRoute = `/${session._id}`;
-    console.log(`WebSocket dynamic route: ws://localhost:8080${dynamicRoute}`);
+    console.log(`WebSocket dynamic route: ws://ink-sync-seven.vercel.app${dynamicRoute}`);
 
     // Optionally: You can establish a WebSocket connection here if needed
-    const socket = new WebSocket(`ws://localhost:8080${dynamicRoute}`);
+    const socket = new WebSocket(`ws://ink-sync-seven.vercel.app${dynamicRoute}`);
 
     socket.on('open', () => {
       console.log('WebSocket connection opened to dynamic route');
@@ -351,7 +351,7 @@ app.put('/sessions/:id', async (req, res) => {
 
     // Get session ID and create the dynamic route for the WebSocket
     const dynamicRoute = `/${session._id}`;
-    console.log(`WebSocket dynamic route: ws://localhost:8080${dynamicRoute}`);
+    console.log(`WebSocket dynamic route: ws://ink-sync-seven.vercel.app${dynamicRoute}`);
 
     res.json({ message: 'Session modified', userIndex: newUserIndex });  // Return the user index of the newly added user
   } catch (err) {
